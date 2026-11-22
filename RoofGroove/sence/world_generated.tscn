@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://ckbqbd1lkyl2o"]
+
+[ext_resource type="Script" uid="uid://c1yhex50vhlvb" path="res://scripts/world_generator.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://ieqwm8ne2m68" path="res://sence/player.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://b4ge7hs3ehttq" path="res://sence/killzone_for_world.tscn" id="3"]
+[ext_resource type="FontFile" uid="uid://dkkpe8khnykus" path="res://fonts/PixelOperator8.ttf" id="4"]
+[ext_resource type="Script" uid="uid://b4g0l76hhcys8" path="res://scripts/net_session.gd" id="5"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_kz"]
+
+[node name="WorldGenerated" type="Node2D" unique_id=1984032566]
+script = ExtResource("1")
+
+[node name="SpawnPoint" type="Marker2D" parent="." unique_id=2051608512]
+
+[node name="player" parent="." unique_id=16554812 instance=ExtResource("2")]
+
+[node name="Killzone for world" parent="." unique_id=867371202 instance=ExtResource("3")]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Killzone for world" unique_id=132043111]
+shape = SubResource("WorldBoundaryShape2D_kz")
+
+[node name="Label" type="Label" parent="." unique_id=2107368051]
+offset_right = 198.0
+offset_bottom = 16.0
+theme_override_fonts/font = ExtResource("4")
+text = "congratulations"
+
+[node name="NetSession" type="Node" parent="." unique_id=365615489]
+script = ExtResource("5")

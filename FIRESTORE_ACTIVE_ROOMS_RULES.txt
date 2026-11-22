@@ -1,0 +1,36 @@
+Merge these match blocks into the existing Firebase Firestore rules, inside:
+match /databases/{database}/documents { ... }
+
+Do not replace the existing rules; other game features use other Firestore collections.
+
+    match /active_rooms/{roomId} {
+      // A room can be fetched by its internal ID after a valid invite code resolves.
+      allow get: if resource.data.active == true;
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.host_uid == request.auth.uid
+        && request.resource.data.active == true;
+
+      // Owner can heartbeat, close the room, or apply an admin's new invite code.
+      allow update: if request.auth != null
+        && resource.data.host_uid == request.auth.uid
+        && request.resource.data.host_uid == resource.data.host_uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_seen', 'active', 'invite_code']);
+
+      allow delete: if request.auth != null
+        && resource.data.host_uid == request.auth.uid;
+    }
+
+    match /room_codes/{inviteCode} {
+      // Invite resolution uses a direct document read; codes cannot be enumerated.
+      allow get: if resource.data.active == true;
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.host_uid == request.auth.uid
+        && request.resource.data.active == true;
+
+      allow update, delete: if request.auth != null
+        && resource.data.host_uid == request.auth.uid;
+    }

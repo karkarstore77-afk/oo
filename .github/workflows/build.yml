@@ -1,0 +1,240 @@
+name: Build RoofGroove
+
+# يشتغل لوحده لما تعمل tag جديد زي v1.1.4، أو تدوس "Run workflow" بإيدك من تبويب Actions
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"        # خليه نفس نسخة Godot اللي بتفتح بيها المشروع
+  PROJECT_DIR: "RoofGroove" # مجلد المشروع كما هو موجود مباشرة في جذر المستودع
+  # نسخ أدوات أندرويد - لو Godot اشتكى من نسخة، غيّرها هنا
+  ANDROID_PLATFORM: "android-36"
+  ANDROID_BUILD_TOOLS: "35.0.1"
+  ANDROID_NDK: "28.1.13356709"
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: windows, name: Windows Release, release_name: RoofGroove-Windows-Release, preset: "Windows Desktop", file: RoofGroove-Windows-Release.exe }
+          - { id: linux,   name: Linux Release,   release_name: RoofGroove-Linux-Release,   preset: "Linux",           file: RoofGroove-Linux-Release.x86_64 }
+          - { id: macos,   name: macOS Release,   release_name: RoofGroove-macOS-Release,   preset: "macOS",           file: RoofGroove-macOS-Release.zip }
+          - { id: android, name: Android Release, release_name: RoofGroove-Android-Release, preset: "Android",         file: RoofGroove-Android-Release.apk }
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-dl
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot + export templates
+        run: |
+          V="${GODOT_VERSION}-stable"
+          BASE="https://github.com/godotengine/godot-builds/releases/download/$V"
+          mkdir -p ~/godot-dl
+          [ -f ~/godot-dl/editor.zip ] || curl -fsSL "$BASE/Godot_v${V}_linux.x86_64.zip" -o ~/godot-dl/editor.zip
+          [ -f ~/godot-dl/templates.tpz ] || curl -fsSL "$BASE/Godot_v${V}_export_templates.tpz" -o ~/godot-dl/templates.tpz
+          unzip -q -o ~/godot-dl/editor.zip -d ~/godot-bin
+          sudo ln -sf ~/godot-bin/Godot_v${V}_linux.x86_64 /usr/local/bin/godot
+          chmod +x ~/godot-bin/Godot_v${V}_linux.x86_64
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$T" ~/tpl
+          unzip -q -o ~/godot-dl/templates.tpz -d ~/tpl
+          cp -r ~/tpl/templates/* "$T/"
+          godot --version
+
+      - name: Windows - wine + rcedit (عشان الأيقونة تتحط في الـ exe)
+        if: matrix.id == 'windows'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -y
+          sudo apt-get install -y wine64 || sudo apt-get install -y wine
+          curl -fsSL https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe -o ~/rcedit.exe
+          WINE="$(command -v wine64 || command -v wine)"
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.7.tres; do
+            cat > ~/.config/godot/$f <<CFG
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/windows/rcedit = "$HOME/rcedit.exe"
+          export/windows/wine = "$WINE"
+          CFG
+          done
+
+      - name: Android - Java + SDK + build template
+        if: matrix.id == 'android'
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}" "ndk;${ANDROID_NDK}"
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.7.tres; do
+            cat > ~/.config/godot/$f <<CFG
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$SDK"
+          export/android/java_sdk_path = "$JAVA_HOME_17_X64"
+          CFG
+          done
+          # نفس اللي بيعمله Project > Install Android Build Template
+          cd "$PROJECT_DIR"
+          mkdir -p android/build
+          unzip -q -o ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip -d android/build
+          echo "${GODOT_VERSION}.stable" > android/.build_version
+          touch android/build/.gdignore
+
+      - name: Android - signing
+        if: matrix.id == 'android'
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "ANDROID_EXPORT_MODE=debug" >> "$GITHUB_ENV"
+            echo "::warning::Android signing secrets are missing; exporting a debug APK for testing."
+          else
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_EXPORT_MODE=release" >> "$GITHUB_ENV"
+          fi
+
+      - name: Cache Egyptian voice files
+        uses: actions/cache@v4
+        with:
+          path: RoofGroove/audio/voice/ar
+          key: voice-ar-${{ hashFiles('RoofGroove/scripts/story_data.gd', 'tools/gen_arabic_voice.py') }}
+
+      - name: Egyptian Arabic voice (edge-tts) - يولّد ملفات الصوت المصري لو ناقصة
+        run: |
+          pip install --quiet --upgrade edge-tts
+          python3 tools/gen_arabic_voice.py --backend edge || echo "::warning::فشل توليد الصوت المصري - اللعبة هتستخدم TTS الجهاز"
+          echo "Arabic voice files: $(ls RoofGroove/audio/voice/ar/*.mp3 2>/dev/null | wc -l)"
+
+      - name: Import project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: godot --headless --path . --import || true
+
+      - name: Generate game asset integrity manifest
+        run: python3 tools/gen_integrity_manifest.py --project "${{ env.PROJECT_DIR }}"
+
+      - name: Export ${{ matrix.name }}
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          mkdir -p "build/${{ matrix.id }}"
+          if [ "${{ matrix.id }}" = "android" ] && [ "$ANDROID_EXPORT_MODE" = "debug" ]; then
+            godot --headless --path . --export-debug "${{ matrix.preset }}" "build/${{ matrix.id }}/${{ matrix.file }}"
+          else
+            godot --headless --path . --export-release "${{ matrix.preset }}" "build/${{ matrix.id }}/${{ matrix.file }}"
+          fi
+          ls -la "build/${{ matrix.id }}"
+
+      - name: Package
+        working-directory: ${{ env.PROJECT_DIR }}/build/${{ matrix.id }}
+        run: |
+          case "${{ matrix.id }}" in
+            android) cp "${{ matrix.file }}" "../${{ matrix.release_name }}-${{ github.ref_name }}.apk" ;;
+            macos) cp "${{ matrix.file }}" "../${{ matrix.release_name }}-${{ github.ref_name }}.zip" ;;
+            windows) cp "${{ matrix.file }}" "../${{ matrix.release_name }}-${{ github.ref_name }}.exe" ;;
+            linux) chmod +x "${{ matrix.file }}"; cp "${{ matrix.file }}" "../${{ matrix.release_name }}-${{ github.ref_name }}.x86_64" ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.release_name }}
+          path: ${{ env.PROJECT_DIR }}/build/${{ matrix.release_name }}-*
+          if-no-files-found: error
+          # الملفات بتروح للـ Release في آخر الـ workflow، فمش محتاجين نحتفظ بيها أكتر من يوم (بيوفر مساحة الـ artifacts)
+          retention-days: 1
+          compression-level: 0
+
+  ios:
+    name: iOS (Xcode project)
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Apple Team ID
+        id: check
+        run: |
+          if [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::warning::مفيش APPLE_TEAM_ID في Secrets - تم تخطي iOS (محتاج حساب Apple Developer)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Godot + export templates
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          V="${GODOT_VERSION}-stable"
+          BASE="https://github.com/godotengine/godot-builds/releases/download/$V"
+          curl -fsSL "$BASE/Godot_v${V}_macos.universal.zip" -o editor.zip
+          curl -fsSL "$BASE/Godot_v${V}_export_templates.tpz" -o templates.tpz
+          unzip -q editor.zip -d ~/godot-app
+          T="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$T" tpl
+          unzip -q templates.tpz -d tpl
+          cp -r tpl/templates/* "$T/"
+          sudo ln -sf ~/godot-app/Godot.app/Contents/MacOS/Godot /usr/local/bin/godot
+          godot --version
+
+      - name: Egyptian Arabic voice (edge-tts)
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          pip3 install --quiet --upgrade edge-tts
+          python3 tools/gen_arabic_voice.py --backend edge || echo "::warning::voice generation failed"
+
+      - name: Export Xcode project
+        if: steps.check.outputs.ok == 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          perl -0pi -e 's/application\/app_store_team_id=""/application\/app_store_team_id="$ENV{APPLE_TEAM_ID}"/' export_presets.cfg
+          grep -q "export_project_only" export_presets.cfg || \
+            perl -0pi -e 's/(application\/min_ios_version=[^\n]*\n)/$1application\/export_project_only=true\n/' export_presets.cfg
+          godot --headless --path . --import || true
+          mkdir -p build/ios
+          godot --headless --path . --export-release "iOS" build/ios/RoofGroove.ipa
+          ls -la build/ios
+          cd build/ios && zip -qr "../RoofGroove-iOS-Release-${{ github.ref_name }}.zip" .
+
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          name: RoofGroove-iOS-Release
+          path: ${{ env.PROJECT_DIR }}/build/RoofGroove-iOS-Release-*.zip
+          retention-days: 1
+          compression-level: 0
+
+  release:
+    name: GitHub Release
+    needs: [build, ios]
+    if: ${{ !cancelled() && needs.build.result == 'success' && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

@@ -1,0 +1,110 @@
+[gd_scene format=3 uid="uid://byxbqyr37g6lv"]
+
+[ext_resource type="Script" uid="uid://b17muhpibcydh" path="res://scripts/change_level.gd" id="1"]
+[ext_resource type="Script" uid="uid://dal26lujchous" path="res://scripts/sky_background.gd" id="2"]
+[ext_resource type="Script" uid="uid://oiraaov2w3fi" path="res://scripts/safe_area.gd" id="3"]
+[ext_resource type="FontFile" uid="uid://dkkpe8khnykus" path="res://fonts/PixelOperator8.ttf" id="4"]
+
+[node name="Change Level" type="Node2D" unique_id=2070023146]
+script = ExtResource("1")
+
+[node name="SkyBackground" type="CanvasLayer" parent="." unique_id=889143766]
+script = ExtResource("2")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=848164943]
+
+[node name="Root" type="Control" parent="CanvasLayer" unique_id=249760666]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Safe" type="MarginContainer" parent="CanvasLayer/Root" unique_id=2042916127]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3")
+
+[node name="Center" type="CenterContainer" parent="CanvasLayer/Root/Safe" unique_id=1533824355]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="CanvasLayer/Root/Safe/Center" unique_id=631594347]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="CanvasLayer/Root/Safe/Center/Column" unique_id=1659188469]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("4")
+theme_override_font_sizes/font_size = 56
+text = "Change Level"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Endless" type="Button" parent="CanvasLayer/Root/Safe/Center/Column" unique_id=1331101254]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Endless"
+
+[node name="Levels" type="HBoxContainer" parent="CanvasLayer/Root/Safe/Center/Column" unique_id=394993053]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="EasyBox" type="VBoxContainer" parent="CanvasLayer/Root/Safe/Center/Column/Levels" unique_id=1168976074]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Easy" type="Button" parent="CanvasLayer/Root/Safe/Center/Column/Levels/EasyBox" unique_id=1406233199]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Easy"
+
+[node name="ComingSoon" type="Label" parent="CanvasLayer/Root/Safe/Center/Column/Levels/EasyBox" unique_id=226040768]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("4")
+theme_override_font_sizes/font_size = 18
+text = "Coming Soon"
+horizontal_alignment = 1
+
+[node name="NormalBox" type="VBoxContainer" parent="CanvasLayer/Root/Safe/Center/Column/Levels" unique_id=164510183]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Normal" type="Button" parent="CanvasLayer/Root/Safe/Center/Column/Levels/NormalBox" unique_id=2051124242]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Normal"
+
+[node name="ComingSoon" type="Label" parent="CanvasLayer/Root/Safe/Center/Column/Levels/NormalBox" unique_id=1439274529]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("4")
+theme_override_font_sizes/font_size = 18
+text = "Coming Soon"
+horizontal_alignment = 1
+
+[node name="HardBox" type="VBoxContainer" parent="CanvasLayer/Root/Safe/Center/Column/Levels" unique_id=515103748]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Hard" type="Button" parent="CanvasLayer/Root/Safe/Center/Column/Levels/HardBox" unique_id=1499278509]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Hard"
+
+[node name="Back" type="Button" parent="CanvasLayer/Root/Safe/Center/Column" unique_id=1177501240]
+unique_name_in_owner = true
+layout_mode = 2
+text = "BACK"

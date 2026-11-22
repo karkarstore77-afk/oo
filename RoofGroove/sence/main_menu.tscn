@@ -1,0 +1,98 @@
+[gd_scene format=3 uid="uid://d2xo8cj0r7ym4"]
+
+[ext_resource type="Script" uid="uid://bkq26oylln7gh" path="res://scripts/main_menu.gd" id="1"]
+[ext_resource type="Script" uid="uid://dal26lujchous" path="res://scripts/sky_background.gd" id="2"]
+[ext_resource type="Script" uid="uid://oiraaov2w3fi" path="res://scripts/safe_area.gd" id="3"]
+[ext_resource type="FontFile" uid="uid://dkkpe8khnykus" path="res://fonts/PixelOperator8.ttf" id="4"]
+[ext_resource type="Script" uid="uid://3abfovnkchoo" path="res://scripts/fps.gd" id="5"]
+
+[node name="MainMenu" type="Control" unique_id=1888665713]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="SkyBackground" type="CanvasLayer" parent="." unique_id=246446049]
+script = ExtResource("2")
+
+[node name="Safe" type="MarginContainer" parent="." unique_id=1123533289]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3")
+
+[node name="Center" type="CenterContainer" parent="Safe" unique_id=111105032]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Safe/Center" unique_id=956245545]
+layout_mode = 2
+theme_override_constants/separation = 64
+
+[node name="KnightHolder" type="Control" parent="Safe/Center/Row" unique_id=116269522]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 360)
+layout_mode = 2
+
+[node name="Menu" type="VBoxContainer" parent="Safe/Center/Row" unique_id=1436547625]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Safe/Center/Row/Menu" unique_id=392464856]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("4")
+theme_override_font_sizes/font_size = 40
+text = "Roof Groove"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="PLAY" type="Button" parent="Safe/Center/Row/Menu" unique_id=1883269218]
+unique_name_in_owner = true
+layout_mode = 2
+text = "PLAY OFFLINE"
+
+[node name="information" type="Button" parent="Safe/Center/Row/Menu" unique_id=2075142579]
+unique_name_in_owner = true
+layout_mode = 2
+text = "INFORMATION"
+
+[node name="QUTE" type="Button" parent="Safe/Center/Row/Menu" unique_id=950947481]
+unique_name_in_owner = true
+layout_mode = 2
+text = "QUIT"
+
+[node name="Version" type="Label" parent="." unique_id=55111367]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -36.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 8
+text = "V1.1.5"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FPSLabel" type="Label" parent="." unique_id=634225018]
+layout_mode = 1
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 278.0
+offset_bottom = 31.0
+theme_override_colors/font_outline_color = Color(0.08, 0.14, 0.32, 1)
+theme_override_constants/outline_size = 6
+script = ExtResource("5")

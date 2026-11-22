@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /app/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /players/{uid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.get('tokens_bonus', 0) == 0
+        && request.resource.data.get('gems', 0) == 0
+        && request.resource.data.get('badge', '') == '';
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && (resource.data.get('username_locked', false) != true
+            || request.resource.data.name == resource.data.name)
+        && request.resource.data.get('tokens_bonus', 0) == resource.data.get('tokens_bonus', 0)
+        && request.resource.data.get('gems', 0) == resource.data.get('gems', 0)
+        && request.resource.data.get('badge', resource.data.get('badge', '')) == resource.data.get('badge', '');
+    }
+
+    match /ids/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /invites/{uid} {
+      allow create, update: if request.auth != null
+        && request.resource.data.from_uid == request.auth.uid;
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /skins/{skin} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /config/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /inbox_messages/{messageId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /codes/{code} {
+      allow get: if request.auth != null;
+      allow list, write: if false;
+    }
+
+    match /active_rooms/{roomId} {
+      allow get: if resource.data.active == true;
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.resource.data.host_uid == request.auth.uid
+        && request.resource.data.active == true;
+      allow update: if request.auth != null
+        && resource.data.host_uid == request.auth.uid
+        && request.resource.data.host_uid == resource.data.host_uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['last_seen', 'active', 'invite_code']);
+      allow delete: if request.auth != null && resource.data.host_uid == request.auth.uid;
+    }
+
+    match /room_codes/{inviteCode} {
+      allow get: if resource.data.active == true;
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.resource.data.host_uid == request.auth.uid
+        && request.resource.data.active == true;
+      allow update, delete: if request.auth != null
+        && resource.data.host_uid == request.auth.uid;
+    }
+
+    match /friend_requests/{requestId} {
+      allow get, list: if request.auth != null
+        && (resource.data.from_uid == request.auth.uid
+            || resource.data.to_uid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.from_uid == request.auth.uid
+        && request.resource.data.to_uid != request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if request.auth != null
+        && resource.data.to_uid == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'rejected']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if request.auth != null
+        && (resource.data.from_uid == request.auth.uid
+            || resource.data.to_uid == request.auth.uid);
+    }
+
+    match /friendships/{friendshipId} {
+      allow get, list: if request.auth != null
+        && request.auth.uid in resource.data.members;
+      allow create: if request.auth != null
+        && request.resource.data.members.size() == 2
+        && request.auth.uid in request.resource.data.members
+        && exists(/databases/$(database)/documents/friend_requests/$(request.resource.data.request_id))
+        && get(/databases/$(database)/documents/friend_requests/$(request.resource.data.request_id)).data.status == 'accepted'
+        && request.resource.data.members.hasAll([
+          get(/databases/$(database)/documents/friend_requests/$(request.resource.data.request_id)).data.from_uid,
+          get(/databases/$(database)/documents/friend_requests/$(request.resource.data.request_id)).data.to_uid
+        ]);
+      allow update: if false;
+      allow delete: if request.auth != null
+        && request.auth.uid in resource.data.members;
+    }
+  }
+}

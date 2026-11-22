@@ -1,0 +1,6 @@
+{
+  "name": "roofgroove-discord-auth",
+  "private": true,
+  "engines": { "node": "26.x" },
+  "dependencies": {}
+}

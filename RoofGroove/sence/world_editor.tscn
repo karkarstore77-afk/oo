@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://bggarw6niodkt" path="res://scripts/world_editor.gd" id="1"]
+
+[node name="WorldEditor" type="Node2D" unique_id=2776995]
+script = ExtResource("1")
