@@ -14,8 +14,8 @@ extends RefCounted
 
 
 
-const VERSION: = "1.1.5"
-const BUILD: = 16
+const VERSION: = "1.1.6"
+const BUILD: = 17
 
 
 

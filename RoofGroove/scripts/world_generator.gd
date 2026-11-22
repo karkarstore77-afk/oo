@@ -36,6 +36,7 @@ const STORY_ORB_CHANCE: = 0.3
 const ARENA_FIRST: = 150
 const ARENA_EVERY: = 150
 const ARENA_WINDOW: = 40  # an arena only opens within this many checkpoints after its checkpoint
+const ARENA_GEMS: = 20  # gems for beating each arena
 const StoryAlly: = preload("res://scripts/story_ally.gd")
 const StoryTip: = preload("res://scripts/story_tip.gd")
 const StoryPickup: = preload("res://scripts/story_pickup.gd")
@@ -758,9 +759,6 @@ func _story_arena_tick(delta: float) -> void :
 	for a in _arenas():
 		var start_cp: int = int(a["cp"])
 		if _cp >= start_cp and _cp < start_cp + ARENA_WINDOW and not StoryState.has_seen(str(a["id"])):
-			# The player left this arena on purpose: do not ask again until the game restarts.
-			if _arena_dismissed.has(str(a["id"])):
-				continue
 			_open_arena(a)
 			return
 
@@ -793,12 +791,12 @@ func _on_arena_done(won: bool, a: Dictionary, arena: Node) -> void :
 	get_tree().paused = false
 	_dialog_open = false
 	_arena_open = false
-	if not won:
-		_arena_dismissed[str(a["id"])] = true
 	if won:
 		StoryState.mark_seen(str(a["id"]))
 		Economy.add_tokens(int(a["tokens"]))
-		_toast(tr("+%d TOKENS") % int(a["tokens"]), Color(1.0, 0.86, 0.4))
+		Economy.add_arena_gems(ARENA_GEMS)
+		GameAudio.play_sfx("success")
+		_toast(tr("+%d TOKENS") % int(a["tokens"]) + "   " + tr("+%d GEMS") % ARENA_GEMS, Color(1.0, 0.86, 0.4))
 
 
 func show_tip(skin: String, text: String) -> void :

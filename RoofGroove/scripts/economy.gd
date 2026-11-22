@@ -36,6 +36,8 @@ var SKINS: Dictionary = {}
 var earned: = 0
 var bonus: = 0
 var gems_granted: = 0  # set ONLY from Firebase (players/{uid}.gems); never written by the game
+## Gems won by beating boss arenas (the game writes this one, players/{uid}.arena_gems).
+var arena_gems: = 0
 var used_codes: Array = []
 var owned: Array = ["classic"]
 var equipped: = "classic"
@@ -75,7 +77,16 @@ func gem_spent() -> int:
 
 
 func gem_balance() -> int:
-	return maxi(0, gems_granted - gem_spent())
+	return maxi(0, gems_granted + arena_gems - gem_spent())
+
+
+func add_arena_gems(n: int) -> void :
+	if n <= 0:
+		return
+	arena_gems += n
+	_save()
+	tokens_changed.emit()
+	_push()
 
 
 func add_tokens(n: int) -> void :
@@ -220,10 +231,11 @@ func bind(node: AnimatedSprite2D) -> void :
 
 
 
-func merge_cloud(cloud_earned: int, cloud_owned: Array, cloud_equipped: String, cloud_bonus: int = 0, cloud_used: Array = [], cloud_gems: int = -1) -> void :
+func merge_cloud(cloud_earned: int, cloud_owned: Array, cloud_equipped: String, cloud_bonus: int = 0, cloud_used: Array = [], cloud_gems: int = -1, cloud_arena_gems: int = 0) -> void :
 	earned = maxi(earned, cloud_earned)
 	if cloud_gems >= 0:
 		gems_granted = cloud_gems
+	arena_gems = maxi(arena_gems, cloud_arena_gems)
 	bonus = maxi(0, cloud_bonus)
 	for id in cloud_owned:
 		if SKINS.has(id) and not owned.has(id):
@@ -240,7 +252,7 @@ func merge_cloud(cloud_earned: int, cloud_owned: Array, cloud_equipped: String, 
 
 
 func sig() -> String:
-	return "%d,%s,%s,%d" % [earned, ",".join(PackedStringArray(owned)), equipped, used_codes.size()]
+	return "%d,%s,%s,%d,%d" % [earned, ",".join(PackedStringArray(owned)), equipped, used_codes.size(), arena_gems]
 
 
 
@@ -259,6 +271,7 @@ func _save() -> void :
 	cfg.set_value("eco", "earned", earned)
 	cfg.set_value("eco", "bonus", bonus)
 	cfg.set_value("eco", "gems", gems_granted)
+	cfg.set_value("eco", "arena_gems", arena_gems)
 	cfg.set_value("eco", "used_codes", used_codes)
 	cfg.set_value("eco", "owned", owned)
 	cfg.set_value("eco", "equipped", equipped)
@@ -272,6 +285,7 @@ func _load() -> void :
 	earned = int(cfg.get_value("eco", "earned", 0))
 	bonus = int(cfg.get_value("eco", "bonus", 0))
 	gems_granted = int(cfg.get_value("eco", "gems", 0))
+	arena_gems = int(cfg.get_value("eco", "arena_gems", 0))
 	used_codes = Array(cfg.get_value("eco", "used_codes", []))
 	owned = Array(cfg.get_value("eco", "owned", ["classic"]))
 	equipped = str(cfg.get_value("eco", "equipped", "classic"))

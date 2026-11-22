@@ -6,6 +6,8 @@ signal device_code_ready(code: String, url: String)
 signal login_status(text: String)
 signal login_succeeded
 signal login_failed(reason: String)
+## Good news for the Pixel Account screens (account created, reset link sent ...).
+signal pixel_notice(text: String)
 signal browser_login_started(provider: String)
 signal sync_done(ok: bool)
 signal leaderboard_ready(ok: bool, entries: Array)
@@ -24,6 +26,18 @@ const GOOGLE_EXCHANGE_URL: = "https://roofgroove-discord-auth.vercel.app/api/goo
 const DISCORD_FORM: = ["Content-Type: application/x-www-form-urlencoded", "User-Agent: DiscordBot (https://roofgroove-discord-auth.vercel.app, 1.0)"]
 const DISCORD_JSON: = ["Content-Type: application/json", "User-Agent: DiscordBot (https://roofgroove-discord-auth.vercel.app, 1.0)"]
 const SYNC_EVERY: = 60.0
+const FB_AUTH: = "https://identitytoolkit.googleapis.com/v1/accounts:"
+## Firebase error code -> short message (translated in loc.gd).
+const PIXEL_ERRORS: = {
+	"EMAIL_EXISTS": "This email already has an account",
+	"INVALID_EMAIL": "Enter a valid email address",
+	"WEAK_PASSWORD": "Password must be at least 6 characters",
+	"INVALID_LOGIN_CREDENTIALS": "Wrong email or password",
+	"INVALID_PASSWORD": "Wrong email or password",
+	"EMAIL_NOT_FOUND": "Wrong email or password",
+	"TOO_MANY_ATTEMPTS_TRY_LATER": "Too many attempts. Try again later",
+	"OPERATION_NOT_ALLOWED": "Pixel Account is not enabled yet (Firebase > Authentication > Email/Password)",
+}
 const LOOPBACK_PORTS: = [53682, 53683, 53684, 53685]
 const LOOPBACK_TIMEOUT: = 300.0
 
@@ -146,6 +160,103 @@ func start_google_login(force_code: = false) -> void :
 	_logging_in = false
 
 
+## ---- Pixel Account (email + password through Firebase Authentication) --------------------------
+func start_pixel_login(mail: String, password: String) -> void :
+	if _logging_in:
+		return
+	_logging_in = true
+	_login_cancel = false
+	await _pixel_sign_in(mail.strip_edges().to_lower(), password)
+	_logging_in = false
+
+
+func start_pixel_signup(mail: String, password: String) -> void :
+	if _logging_in:
+		return
+	_logging_in = true
+	await _pixel_sign_up(mail.strip_edges().to_lower(), password)
+	_logging_in = false
+
+
+func start_password_reset(mail: String) -> void :
+	if _logging_in:
+		return
+	_logging_in = true
+	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
+		JSON.stringify({"requestType": "PASSWORD_RESET", "email": mail.strip_edges().to_lower()}))
+	_logging_in = false
+	if r["ok"]:
+		pixel_notice.emit("RESET LINK SENT - CHECK YOUR EMAIL")
+	else:
+		login_failed.emit(_pixel_error(_error_text(r)))
+
+
+func _pixel_error(msg: String) -> String:
+	for code in PIXEL_ERRORS:
+		if str(code) in msg:
+			return str(PIXEL_ERRORS[code])
+	return msg
+
+
+func _pixel_sign_up(mail: String, password: String) -> void :
+	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "signUp?key=" + Cfg.API_KEY, JSON_H, 
+		JSON.stringify({"email": mail, "password": password, "returnSecureToken": true}))
+	if not r["ok"] or not (r["data"] is Dictionary):
+		login_failed.emit(_pixel_error(_error_text(r)))
+		return
+	var tok: = str((r["data"] as Dictionary).get("idToken", ""))
+	# The account only works after the player opens the link we email (stops fake accounts).
+	var v: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
+		JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
+	if not v["ok"]:
+		login_failed.emit(_pixel_error(_error_text(v)))
+		return
+	pixel_notice.emit("ACCOUNT CREATED - CHECK YOUR EMAIL FOR THE VERIFICATION LINK, THEN SIGN IN")
+
+
+func _pixel_sign_in(mail: String, password: String) -> void :
+	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "signInWithPassword?key=" + Cfg.API_KEY, JSON_H, 
+		JSON.stringify({"email": mail, "password": password, "returnSecureToken": true}))
+	if not r["ok"] or not (r["data"] is Dictionary):
+		var msg: = _error_text(r)
+		if "USER_DISABLED" in msg:
+			_handle_banned()
+			login_failed.emit("YOU HAVE BEEN BANNED")
+			return
+		login_failed.emit(_pixel_error(msg))
+		return
+	var d: Dictionary = r["data"]
+	var tok: = str(d.get("idToken", ""))
+	var look: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "lookup?key=" + Cfg.API_KEY, JSON_H, JSON.stringify({"idToken": tok}))
+	var verified: = false
+	if look["ok"] and look["data"] is Dictionary:
+		var users: Array = (look["data"] as Dictionary).get("users", [])
+		if not users.is_empty():
+			verified = bool((users[0] as Dictionary).get("emailVerified", false))
+	if not verified:
+		await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
+			JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
+		login_failed.emit("EMAIL NOT VERIFIED - WE SENT YOU A NEW LINK")
+		return
+	var new_uid: = str(d.get("localId", ""))
+	var new_refresh: = str(d.get("refreshToken", ""))
+	if new_uid == "" or tok == "" or new_refresh == "":
+		login_failed.emit("Firebase returned an incomplete sign-in session")
+		return
+	uid = new_uid
+	email = mail
+	id_token = tok
+	refresh_token = new_refresh
+	token_expiry = Time.get_unix_time_from_system() + float(d.get("expiresIn", 3600))
+	banned = false
+	_save()
+	await _merge_with_cloud()
+	if not is_signed_in():
+		login_failed.emit("Firebase session was lost while syncing the account")
+		return
+	login_succeeded.emit()
+
+
 func start_discord_login() -> void :
 	if _logging_in:
 		return
@@ -174,6 +285,7 @@ func push_now() -> void :
 		"created_at": {"integerValue": str(maxi(1, FriendsSystem.member_since))},
 		"username_locked": {"booleanValue": Network.username_locked}, 
 		"tokens_earned": {"integerValue": str(Economy.earned)}, 
+		"arena_gems": {"integerValue": str(Economy.arena_gems)}, 
 		"skins_owned": {"arrayValue": {"values": Economy.owned.map( func(id): return {"stringValue": str(id)})}}, 
 		"skin_equipped": {"stringValue": Economy.equipped}, 
 		"codes_used": {"arrayValue": {"values": Economy.used_codes.map( func(c): return {"stringValue": str(c)})}}, 
@@ -694,7 +806,8 @@ func _merge_economy(f: Dictionary) -> void :
 		str(_fv(f, "skin_equipped", "")), 
 		int(_fv(f, "tokens_bonus", 0)), 
 		_str_array(f, "codes_used"), 
-		int(_fv(f, "gems", 0)))
+		int(_fv(f, "gems", 0)), 
+		int(_fv(f, "arena_gems", 0)))
 
 
 

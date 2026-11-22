@@ -25,6 +25,8 @@ var origin_x: = 0.0
 var half: = 32.0
 var speed_mult: = 1.0
 var dead: = false
+## Used by the boss arena: only draws the monster (no AI, no hits).
+var visual_only: = false
 
 var _ground_y: = 0.0
 var _speed: = 28.0
@@ -39,6 +41,9 @@ var _player: Node2D
 
 
 func _ready() -> void :
+	if visual_only:
+		_phase = randf() * TAU
+		return
 	add_to_group("monsters")
 	z_index = 3
 	_phase = randf() * TAU
@@ -59,6 +64,12 @@ func _ready() -> void :
 	_speed *= speed_mult
 
 
+## Arena only: which way the monster looks, and whether it is angry.
+func look(direction: float, alert: bool = false) -> void :
+	_dir = 1.0 if direction >= 0.0 else -1.0
+	_alert = alert
+
+
 func _get_player() -> Node2D:
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("local_player") as Node2D
@@ -66,6 +77,10 @@ func _get_player() -> Node2D:
 
 
 func _process(delta: float) -> void :
+	if visual_only:
+		_t += delta
+		queue_redraw()
+		return
 	if dead:
 		return
 	_t += delta

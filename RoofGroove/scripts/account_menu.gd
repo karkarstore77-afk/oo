@@ -169,8 +169,10 @@ func _on_browser_started(provider: String) -> void :
 
 func _on_sign_out() -> void :
 	Network.cloud.sign_out()
-	_status.text = "Signed out"
-	_refresh()
+	# Back to the sign in screen (it will ask again until the player signs in or chooses to play without an account).
+	const LoginMenu: = preload("res://scripts/login_menu.gd")
+	LoginMenu.remember_guest(false)
+	get_tree().change_scene_to_file("res://sence/login_menu.tscn")
 
 
 func _on_cancel() -> void :

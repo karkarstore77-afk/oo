@@ -11,6 +11,7 @@ extends CanvasLayer
 
 signal finished(won: bool)
 
+const MonsterScript: = preload("res://scripts/story_monster.gd")
 const W: = 640.0
 const H: = 360.0
 const GY: = 300.0
@@ -61,6 +62,10 @@ var _bullets: Array = []
 
 
 var _boss_on: = false
+var _actors: Node2D
+var _overlay: Node2D
+var _p_sprite: AnimatedSprite2D
+var _boss_node: Node2D
 var _bx: = W + 40.0
 var _by: = GY
 var _bvx: = 0.0
@@ -120,6 +125,17 @@ func _ready() -> void :
 	_view = Node2D.new()
 	add_child(_view)
 	_view.draw.connect(_on_view_draw)
+	# Real models: the player is drawn with the skin they equipped, enemies with the game's own monsters.
+	_actors = Node2D.new()
+	_view.add_child(_actors)
+	_p_sprite = AnimatedSprite2D.new()
+	_actors.add_child(_p_sprite)
+	Economy.bind(_p_sprite)
+	_p_sprite.speed_scale = 1.0
+	_p_sprite.play(&"idle")
+	_overlay = Node2D.new()
+	_view.add_child(_overlay)
+	_overlay.draw.connect(_on_overlay_draw)
 	var rng: = RandomNumberGenerator.new()
 	rng.seed = 4242
 	for i in 48:
@@ -182,7 +198,8 @@ func _build_buttons() -> void :
 	br.name = "R"
 	bj.name = "J"
 	_btn_exit = _mk_btn("EXIT", &"")
-	_btn_exit.pressed.connect( func() -> void : _finish(false))
+	_btn_exit.visible = false  # the arena is mandatory: it can only be left by winning
+	_btn_exit.disabled = true
 
 
 func _layout() -> void :
@@ -238,7 +255,7 @@ func start() -> void :
 	_p_punch_cd = 0.0
 	_p_punch_t = 0.0
 	_p_inv = 0.0
-	_minions.clear()
+	_clear_actors()
 	_bullets.clear()
 	_sparks.clear()
 	_shake = 0.0
@@ -273,6 +290,8 @@ func _set_phase(p: Phase) -> void :
 			_p_ammo = AMMO_MAX
 			_p_hp = minf(PLAYER_MAX, _p_hp + 35.0)
 			_boss_on = true
+			if _boss_node == null or not is_instance_valid(_boss_node):
+				_boss_node = _make_actor("jumper" if theme_name == "space" else "charger", 2.6)
 			_bx = W + 40.0
 			_bhp = _boss_max
 			GameAudio.play_sfx("power_up")
@@ -303,7 +322,7 @@ func _input(event: InputEvent) -> void :
 			KEY_UP, KEY_W, KEY_SPACE:
 				_jump_queued = true
 			KEY_ESCAPE:
-				_finish(false)
+				pass  # no way out: beat the boss
 		get_viewport().set_input_as_handled()
 
 
@@ -425,12 +444,14 @@ func _process(delta: float) -> void :
 				start()
 	_update_hud()
 	_sparks_step(dt)
+	_update_actors()
 	_shake = maxf(_shake - dt, 0.0)
 	if _shake > 0.0:
 		_view.position = _base_pos + Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake * 18.0 * _view.scale.x
 	else:
 		_view.position = _base_pos
 	_view.queue_redraw()
+	_overlay.queue_redraw()
 
 
 func _player_step(dt: float) -> void :
@@ -463,6 +484,7 @@ func _minions_step(dt: float) -> void :
 		var from_right: = randf() < 0.5
 		var space: = theme_name == "space"
 		_minions.append({
+			"node": _make_actor("bat" if space else "slime", 1.0), 
 			"x": W + 14.0 if from_right else -14.0, 
 			"y": GY - 22.0 if space else GY, 
 			"vy": 0.0, 
@@ -477,6 +499,8 @@ func _minions_step(dt: float) -> void :
 		if float(m["hp"]) <= 0.0:
 			GameAudio.play_sfx("explosion")
 			_spawn_sparks(float(m["x"]), float(m["y"]) - 10.0, Color(1.0, 0.7, 0.2), 14)
+			if is_instance_valid(m["node"]):
+				(m["node"] as Node).queue_free()
 			continue
 		m["flash"] = maxf(float(m["flash"]) - dt, 0.0)
 		m["t"] = float(m["t"]) + dt
@@ -494,6 +518,11 @@ func _minions_step(dt: float) -> void :
 			m["y"] = minf(float(m["y"]) + float(m["vy"]) * dt, GY)
 			if float(m["y"]) >= GY:
 				m["vy"] = 0.0
+		var actor: Node2D = m["node"]
+		if is_instance_valid(actor):
+			actor.position = Vector2(float(m["x"]), float(m["y"]) - 8.0)
+			actor.modulate = Color(2.5, 2.5, 2.5) if float(m["flash"]) > 0.0 else Color.WHITE
+			actor.call("look", dirx)
 		if absf(float(m["x"]) - _px) < 14.0 and absf(float(m["y"]) - _py) < 18.0:
 			_hurt_player(6.0)
 		alive.append(m)
@@ -579,6 +608,41 @@ func _update_hud() -> void :
 		_lbl_ammo.text = ""
 
 
+func _make_actor(monster_kind: String, big: float) -> Node2D:
+	var n: Node2D = MonsterScript.new()
+	n.set("kind", monster_kind)
+	n.set("visual_only", true)
+	n.scale = Vector2(big, big)
+	_actors.add_child(n)
+	return n
+
+
+func _clear_actors() -> void :
+	for m in _minions:
+		if is_instance_valid(m["node"]):
+			(m["node"] as Node).queue_free()
+	_minions.clear()
+	if _boss_node != null and is_instance_valid(_boss_node):
+		_boss_node.queue_free()
+	_boss_node = null
+
+
+func _update_actors() -> void :
+	# player: the exact skin the player equipped (idle / run / jump like in the real game)
+	var anim: = &"jump" if not _p_ground else (&"run" if _axis() != 0.0 and _phase != Phase.LOST else &"idle")
+	if _p_sprite.animation != anim or not _p_sprite.is_playing():
+		_p_sprite.play(anim)
+	_p_sprite.flip_h = _p_face < 0.0
+	_p_sprite.position = Vector2(_px, _py - 10.0)
+	_p_sprite.visible = not (_p_inv > 0.0 and int(_time * 20.0) % 2 == 0 and _phase != Phase.LOST)
+	_p_sprite.modulate = Color(1.6, 0.55, 0.55) if _p_flash > 0.0 else Color.WHITE
+	if _boss_node != null and is_instance_valid(_boss_node):
+		_boss_node.visible = _boss_on
+		_boss_node.position = Vector2(_bx, _by - 23.0)
+		_boss_node.modulate = Color(2.5, 2.5, 2.5) if _b_flash > 0.0 else Color.WHITE
+		_boss_node.call("look", _b_face, _b_punch_t > 0.0)
+
+
 func _boss_title() -> String:
 	var base: = _s("ALIEN KING", "ملك الفضائيين", "ROI ALIEN") if theme_name == "space" else _s("THE BEAST", "الوحش", "LA BÊTE")
 	return base if level <= 1 else "%s  Lv.%d" % [base, level]
@@ -647,15 +711,23 @@ func _on_view_draw() -> void :
 	v.draw_rect(Rect2(0, GY, W, H - GY), gc)
 	v.draw_rect(Rect2(0, GY, W, 5), gt)
 
-	for i in _minions.size():
-		var m: Dictionary = _minions[i]
-		_draw_minion(v, float(m["x"]), float(m["y"]), float(m["flash"]) > 0.0, float(m["t"]))
 
-	if _boss_on:
-		_draw_boss(v)
-
-	_draw_player(v)
-
+func _on_overlay_draw() -> void :
+	var v: = _overlay
+	# fist / blaster (the body itself is the player's skin)
+	var f: = _p_face
+	var hy: = _py - 9.0
+	if _p_punch_t > 0.0:
+		var ext: = 10.0 + 8.0 * (_p_punch_t / 0.18)
+		v.draw_rect(Rect2(_px + (6.0 if f > 0.0 else -6.0 - ext), hy - 2.0, ext, 4.0), Color(0.95, 0.82, 0.68))
+		v.draw_rect(Rect2(_px + f * (6.0 + ext) - 3.0, hy - 3.0, 6.0, 6.0), Color(1.0, 0.9, 0.7))
+	elif _p_gun:
+		v.draw_rect(Rect2(_px + (6.0 if f > 0.0 else -15.0), hy - 1.0, 9.0, 3.0), Color(0.25, 0.25, 0.3))
+		v.draw_rect(Rect2(_px + (6.0 if f > 0.0 else -8.0), hy + 1.0, 2.0, 4.0), Color(0.2, 0.2, 0.25))
+	if _boss_on and _b_punch_t > 0.0:
+		var ext2: = 12.0 + 12.0 * (_b_punch_t / 0.25)
+		var bf: = _b_face
+		v.draw_rect(Rect2(_bx + (12.0 if bf > 0.0 else -12.0 - ext2), _by - 20.0, ext2, 6.0), Color(0.3, 0.1, 0.25) if theme_name != "space" else Color(0.3, 0.7, 0.4))
 	for i in _bullets.size():
 		var b: Dictionary = _bullets[i]
 		var bx: = float(b["x"])
@@ -682,77 +754,3 @@ func _draw_bar(v: Node2D, r: Rect2, frac: float, col: Color) -> void :
 	v.draw_rect(Rect2(r.position - Vector2(2, 2), r.size + Vector2(4, 4)), Color(0, 0, 0, 0.8))
 	v.draw_rect(r, Color(0.25, 0.1, 0.1))
 	v.draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(frac, 0.0, 1.0), r.size.y)), col)
-
-
-func _draw_player(v: Node2D) -> void :
-	if _p_inv > 0.0 and int(_time * 20.0) % 2 == 0 and _phase != Phase.LOST:
-		return
-	var col: = Color(0.62, 0.88, 1.0)
-	if _p_flash > 0.0:
-		col = Color(1, 0.5, 0.5)
-	var x: = _px
-	var y: = _py
-	var f: = _p_face
-	var step: = sin(_time * 14.0) * 2.0 if (_axis() != 0.0 and _p_ground) else 0.0
-	v.draw_rect(Rect2(x - 4.0, y - 5.0, 3.0, 5.0 + step * 0.3), Color(0.2, 0.25, 0.45))
-	v.draw_rect(Rect2(x + 1.0, y - 5.0, 3.0, 5.0 - step * 0.3), Color(0.2, 0.25, 0.45))
-	v.draw_rect(Rect2(x - 5.0, y - 15.0, 10.0, 11.0), col)
-	if theme_name == "space":
-		v.draw_circle(Vector2(x, y - 20.0), 7.5, Color(0.8, 0.9, 1.0, 0.5))
-	v.draw_rect(Rect2(x - 4.0, y - 23.0, 8.0, 8.0), Color(0.95, 0.82, 0.68))
-	v.draw_rect(Rect2(x + f * 2.0 - 1.0, y - 20.0, 2.0, 2.0), Color(0.1, 0.1, 0.15))
-	if _p_punch_t > 0.0:
-		var ext: = 10.0 + 8.0 * (_p_punch_t / 0.18)
-		v.draw_rect(Rect2(x + (3.0 if f > 0.0 else -3.0 - ext), y - 12.0, ext, 4.0), Color(0.95, 0.82, 0.68))
-		v.draw_rect(Rect2(x + f * (3.0 + ext) - 3.0, y - 13.0, 6.0, 6.0), Color(1.0, 0.9, 0.7))
-	elif _p_gun:
-		v.draw_rect(Rect2(x + (4.0 if f > 0.0 else -13.0), y - 12.0, 9.0, 3.0), Color(0.25, 0.25, 0.3))
-		v.draw_rect(Rect2(x + (4.0 if f > 0.0 else -6.0), y - 10.0, 2.0, 4.0), Color(0.2, 0.2, 0.25))
-	else:
-		v.draw_rect(Rect2(x + f * 4.0 - 1.5, y - 11.0, 3.0, 5.0), Color(0.95, 0.82, 0.68))
-
-
-func _draw_minion(v: Node2D, x: float, y: float, flash: bool, t: float) -> void :
-	if theme_name == "space":
-		var c: = Color.WHITE if flash else Color(0.55, 0.9, 0.7)
-		v.draw_circle(Vector2(x, y - 12.0), 9.0, c)
-		v.draw_rect(Rect2(x - 4.0, y - 14.0, 8.0, 3.0), Color(0.1, 0.15, 0.2))
-		v.draw_rect(Rect2(x - 1.0, y - 21.0, 2.0, 5.0), c)
-		v.draw_circle(Vector2(x, y - 22.0), 2.0, Color(1.0, 0.3, 0.3))
-	else:
-		var c2: = Color.WHITE if flash else Color(0.22, 0.16, 0.3)
-		v.draw_rect(Rect2(x - 9.0, y - 14.0, 18.0, 14.0), c2)
-		v.draw_rect(Rect2(x - 9.0, y - 17.0, 4.0, 4.0), c2)
-		v.draw_rect(Rect2(x + 5.0, y - 17.0, 4.0, 4.0), c2)
-		v.draw_rect(Rect2(x - 5.0, y - 10.0, 3.0, 3.0), Color(1.0, 0.3, 0.3))
-		v.draw_rect(Rect2(x + 2.0, y - 10.0, 3.0, 3.0), Color(1.0, 0.3, 0.3))
-		v.draw_rect(Rect2(x - 7.0, y, 4.0, 2.0 + sin(t * 10.0)), c2)
-
-
-func _draw_boss(v: Node2D) -> void :
-	var x: = _bx
-	var y: = _by
-	var f: = _b_face
-	var flash: = _b_flash > 0.0
-	if theme_name == "space":
-		var c: = Color.WHITE if flash else Color(0.35, 0.8, 0.45)
-		v.draw_rect(Rect2(x - 14.0, y - 22.0, 28.0, 22.0), c)
-		v.draw_circle(Vector2(x, y - 30.0), 14.0, c)
-		v.draw_circle(Vector2(x + f * 3.0, y - 31.0), 6.0, Color.WHITE)
-		v.draw_circle(Vector2(x + f * 4.0, y - 31.0), 3.0, Color(0.7, 0.0, 0.2))
-		v.draw_rect(Rect2(x - 10.0, y - 48.0, 2.0, 8.0), c)
-		v.draw_rect(Rect2(x + 8.0, y - 48.0, 2.0, 8.0), c)
-		v.draw_circle(Vector2(x - 9.0, y - 49.0), 2.5, Color(1.0, 0.9, 0.3))
-		v.draw_circle(Vector2(x + 9.0, y - 49.0), 2.5, Color(1.0, 0.9, 0.3))
-	else:
-		var c2: = Color.WHITE if flash else Color(0.42, 0.14, 0.34)
-		v.draw_rect(Rect2(x - 15.0, y - 26.0, 30.0, 26.0), c2)
-		v.draw_rect(Rect2(x - 12.0, y - 40.0, 24.0, 15.0), c2)
-		for i in 3:
-			v.draw_rect(Rect2(x - 11.0 + float(i) * 8.0, y - 46.0, 5.0, 7.0), c2)
-		v.draw_rect(Rect2(x + f * 3.0 - 6.0, y - 35.0, 4.0, 4.0), Color(1.0, 0.9, 0.2))
-		v.draw_rect(Rect2(x + f * 3.0 + 2.0, y - 35.0, 4.0, 4.0), Color(1.0, 0.9, 0.2))
-		v.draw_rect(Rect2(x - 8.0, y - 29.0, 16.0, 3.0), Color(0.9, 0.9, 0.9))
-	if _b_punch_t > 0.0:
-		var ext: = 12.0 + 12.0 * (_b_punch_t / 0.25)
-		v.draw_rect(Rect2(x + (12.0 if f > 0.0 else -12.0 - ext), y - 20.0, ext, 6.0), Color(0.3, 0.1, 0.25) if theme_name != "space" else Color(0.3, 0.7, 0.4))

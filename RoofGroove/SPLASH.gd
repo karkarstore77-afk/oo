@@ -5,6 +5,7 @@ const SCREENS: = [
 	"res://sprites/splash_studio.png", 
 	"res://sprites/splash_game.png", 
 ]
+const LoginMenu: = preload("res://scripts/login_menu.gd")
 const FADE: = 0.5
 const HOLD: = [1.8, 2.3]
 
@@ -49,4 +50,9 @@ func _go() -> void :
 	if _done:
 		return
 	_done = true
-	get_tree().change_scene_to_file("res://sence/main_menu.tscn")
+	# Not signed in yet (and did not choose "play without account") -> show the sign in screen first.
+	var target: = "res://sence/main_menu.tscn"
+	var c: Node = Network.cloud
+	if c != null and c.is_configured() and not c.is_signed_in() and not c.banned and not LoginMenu.guest_chosen():
+		target = "res://sence/login_menu.tscn"
+	get_tree().change_scene_to_file(target)
