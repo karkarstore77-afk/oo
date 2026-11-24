@@ -15,7 +15,7 @@ const TRIES: = 3
 static func go(host: Node) -> String:
 	StoryState.active = false
 	if Network.room_mode == "pvp":
-		host.get_tree().change_scene_to_file("res://sence/pvp_arena.tscn")
+		SceneTransition.go("res://sence/pvp_arena.tscn")
 		return ""
 	var race: = Network.room_mode == "race"
 	if Network.room_world == "":
@@ -25,7 +25,7 @@ static func go(host: Node) -> String:
 			Network.teleported_run = false
 			CustomWorld.play(host.get_tree(), rw, "Race Track", "res://sence/main_menu.tscn", false, true)
 		else:
-			host.get_tree().change_scene_to_file("res://sence/checkpoint_selector.tscn")
+			SceneTransition.go("res://sence/checkpoint_selector.tscn")
 		return ""
 	if Network.room_world == Network.BUILTIN_ENDLESS_WORLD or Network.room_world == Network.BUILTIN_CLASSIC_WORLD:
 		if race:
@@ -33,7 +33,7 @@ static func go(host: Node) -> String:
 		Network.run_active = false
 		Network.teleported_run = false
 		var scene_path := "res://sence/world_generated.tscn" if Network.room_world == Network.BUILTIN_ENDLESS_WORLD else "res://sence/world.tscn"
-		host.get_tree().change_scene_to_file(scene_path)
+		SceneTransition.go(scene_path)
 		return ""
 	var id: = Network.room_world
 	var world_name: = Network.room_world_name

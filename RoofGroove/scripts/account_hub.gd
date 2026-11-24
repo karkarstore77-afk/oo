@@ -32,7 +32,7 @@ func _ready() -> void :
 	var rank: = UI.button(tr("RANKING"), 20, 60.0)
 	rank.pressed.connect( func():
 		Network.set_meta("open_ranking", true)
-		get_tree().change_scene_to_file("res://sence/account_menu.tscn"))
+		SceneTransition.go("res://sence/account_menu.tscn"))
 	root.add_child(rank)
 	_add(root, "SKINS", "res://sence/shop_menu.tscn")
 	_add(root, "FRIENDS", "res://sence/friends_menu.tscn")
@@ -49,12 +49,12 @@ func _ready() -> void :
 
 func _add(root: Control, text: String, scene: String) -> void :
 	var b: = UI.button(tr(text), 20, 60.0)
-	b.pressed.connect( func(): get_tree().change_scene_to_file(scene))
+	b.pressed.connect( func(): SceneTransition.go(scene))
 	root.add_child(b)
 
 
 func _go_back() -> void :
-	get_tree().change_scene_to_file("res://sence/main_menu.tscn")
+	SceneTransition.go("res://sence/main_menu.tscn")
 
 
 func _open_profile() -> void:
@@ -63,7 +63,7 @@ func _open_profile() -> void:
 		Network.set_meta("profile_can_add", false)
 	else:
 		Network.set_meta("profile_target_uid", "")
-	get_tree().change_scene_to_file("res://sence/profile_menu.tscn")
+	SceneTransition.go("res://sence/profile_menu.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void :

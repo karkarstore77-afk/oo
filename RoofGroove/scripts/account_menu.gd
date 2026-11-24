@@ -9,6 +9,7 @@ var _board_label: Label
 var _main: VBoxContainer
 var _login: VBoxContainer
 var _board: VBoxContainer
+var _pixel_btn: Button
 var _sign_in_btn: Button
 var _discord_btn: Button
 var _wait: VBoxContainer
@@ -85,6 +86,8 @@ func _build_main(root: Container) -> void :
 	root.add_child(_main)
 	_stats = _label("", 14)
 	_main.add_child(_stats)
+	_pixel_btn = _btn("SIGN IN WITH PIXEL ACCOUNT", _on_pixel_sign_in)
+	_main.add_child(_pixel_btn)
 	_sign_in_btn = _btn("SIGN IN WITH GOOGLE", _on_sign_in)
 	_main.add_child(_sign_in_btn)
 	_discord_btn = _btn("SIGN IN WITH DISCORD", _on_discord_sign_in)
@@ -93,7 +96,7 @@ func _build_main(root: Container) -> void :
 	_main.add_child(_rank_btn)
 	_sign_out_btn = _btn("SIGN OUT", _on_sign_out)
 	_main.add_child(_sign_out_btn)
-	_main.add_child(_btn("BACK", func(): get_tree().change_scene_to_file("res://sence/account_hub.tscn")))
+	_main.add_child(_btn("BACK", func(): SceneTransition.go("res://sence/account_hub.tscn")))
 
 
 func _build_login(root: Container) -> void :
@@ -129,6 +132,11 @@ func _build_board(root: Container) -> void :
 	_board.add_child(_board_label)
 	_board.add_child(_btn("BACK", func(): _show(_main)))
 
+
+
+## Opens the sign in screen that holds the Pixel Account (email + password) form: sign in, create account, forgot password.
+func _on_pixel_sign_in() -> void :
+	SceneTransition.go("res://sence/login_menu.tscn")
 
 
 func _on_sign_in() -> void :
@@ -172,7 +180,7 @@ func _on_sign_out() -> void :
 	# Back to the sign in screen (it will ask again until the player signs in or chooses to play without an account).
 	const LoginMenu: = preload("res://scripts/login_menu.gd")
 	LoginMenu.remember_guest(false)
-	get_tree().change_scene_to_file("res://sence/login_menu.tscn")
+	SceneTransition.go("res://sence/login_menu.tscn")
 
 
 func _on_cancel() -> void :
@@ -243,6 +251,7 @@ func _refresh() -> void :
 		who, tr(str(rk["name"])).to_upper(), Network.checkpoint, Network.best_checkpoint, 
 		Network.format_time(Network.total_time), Network.total_deaths]
 	_stats.add_theme_color_override("font_color", rk["color"])
+	_pixel_btn.visible = not signed
 	_sign_in_btn.visible = not signed
 	_discord_btn.visible = not signed
 	_sign_out_btn.visible = signed

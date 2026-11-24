@@ -35,15 +35,15 @@ func _ready() -> void :
 	root.add_child(story)
 
 	var online: = UI.button("ONLINE / LAN", 20, 64.0)
-	online.pressed.connect( func(): get_tree().change_scene_to_file("res://sence/online_menu.tscn"))
+	online.pressed.connect( func(): SceneTransition.go("res://sence/online_menu.tscn"))
 	root.add_child(online)
 
 	var offline: = UI.button("OFFLINE", 20, 64.0)
-	offline.pressed.connect( func(): get_tree().change_scene_to_file("res://sence/change_level.tscn"))
+	offline.pressed.connect( func(): SceneTransition.go("res://sence/change_level.tscn"))
 	root.add_child(offline)
 
 	var worlds: = UI.button("WORLDS", 20, 64.0)
-	worlds.pressed.connect( func(): get_tree().change_scene_to_file("res://sence/worlds_menu.tscn"))
+	worlds.pressed.connect( func(): SceneTransition.go("res://sence/worlds_menu.tscn"))
 	root.add_child(worlds)
 
 	var back: = UI.button("BACK")
@@ -60,11 +60,11 @@ func _start_story() -> void :
 		StoryState.mark_intro_seen()
 		Cutscene.play(get_tree(), StoryData.intro(), StoryData.WORLD_SCENE)
 	else:
-		get_tree().change_scene_to_file(StoryData.WORLD_SCENE)
+		SceneTransition.go(StoryData.WORLD_SCENE)
 
 
 func _go_back() -> void :
-	get_tree().change_scene_to_file("res://sence/main_menu.tscn")
+	SceneTransition.go("res://sence/main_menu.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void :

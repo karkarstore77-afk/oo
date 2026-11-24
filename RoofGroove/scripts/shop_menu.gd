@@ -84,7 +84,7 @@ func _ready() -> void :
 	root.add_child(_status)
 
 	var back: = UI.button("BACK")
-	back.pressed.connect( func() -> void : get_tree().change_scene_to_file("res://sence/account_hub.tscn"))
+	back.pressed.connect( func() -> void : SceneTransition.go("res://sence/account_hub.tscn"))
 	root.add_child(back)
 
 	_welcome = AcceptDialog.new()

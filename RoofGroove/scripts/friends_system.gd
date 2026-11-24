@@ -621,7 +621,7 @@ func _show_invite_popup(from_name: String, code: String) -> void :
 func _accept_invite(code: String) -> void :
 	pending_join_code = code
 	_close_popup()
-	get_tree().change_scene_to_file("res://sence/online_menu.tscn")
+	SceneTransition.go("res://sence/online_menu.tscn")
 
 
 func _auto_close_popup(ref: CanvasLayer) -> void :

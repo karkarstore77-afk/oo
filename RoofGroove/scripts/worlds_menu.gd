@@ -125,9 +125,9 @@ func _show() -> void :
 	match _tab:
 		Tab.GAME:
 			_add_row(tr("ENDLESS WORLD"), tr("The main world - never ends"), [
-				[tr("PLAY"), func() -> void : get_tree().change_scene_to_file("res://sence/world_generated.tscn")]])
+				[tr("PLAY"), func() -> void : SceneTransition.go("res://sence/world_generated.tscn")]])
 			_add_row(tr("CLASSIC WORLD"), tr("The original hard world"), [
-				[tr("PLAY"), func() -> void : get_tree().change_scene_to_file("res://sence/world.tscn")]])
+				[tr("PLAY"), func() -> void : SceneTransition.go("res://sence/world.tscn")]])
 			for w in _online:
 				if bool(w["official"]):
 					_add_online_row(w)
@@ -214,12 +214,12 @@ func _add_row(title: String, sub: String, buttons: Array) -> void :
 
 func _on_new() -> void :
 	WorldEditor.edit_file = ""
-	get_tree().change_scene_to_file("res://sence/world_editor.tscn")
+	SceneTransition.go("res://sence/world_editor.tscn")
 
 
 func _edit(file: String) -> void :
 	WorldEditor.edit_file = file
-	get_tree().change_scene_to_file("res://sence/world_editor.tscn")
+	SceneTransition.go("res://sence/world_editor.tscn")
 
 
 func _play_local(w: Dictionary, title: String) -> void :
@@ -261,7 +261,7 @@ func _delete_online(id: String) -> void :
 
 
 func _go_back() -> void :
-	get_tree().change_scene_to_file(MENU_SCENE)
+	SceneTransition.go(MENU_SCENE)
 
 
 func _unhandled_input(event: InputEvent) -> void :

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Roof Groove • Pixel Account</title>
+<style>
+  @font-face { font-family: "PixelOp"; src: url("PixelOperator8.ttf") format("truetype"); font-display: swap; }
+  :root { --gold:#ffd666; --card:rgba(19,13,41,.94); --line:#6b4bb0; --muted:#b9b2d6; --input:#110a24; --edge:#4b3a82; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; min-height:100%; }
+  body {
+    font-family: "PixelOp", "Segoe UI", Tahoma, "Noto Naskh Arabic", sans-serif;
+    color:#fff; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding: 18px 14px 28px;
+    background: linear-gradient(180deg,#0b0719 0%,#1e1040 62%,#3a1d5c 100%) fixed;
+    overflow-x:hidden;
+  }
+  /* twinkling stars */
+  .stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .stars i { position:absolute; width:3px; height:3px; background:#fff5d8; opacity:.8; animation: tw 2.6s infinite ease-in-out; }
+  @keyframes tw { 0%,100%{opacity:.15} 50%{opacity:1} }
+  main { position:relative; z-index:1; width:100%; max-width:460px; display:flex; flex-direction:column; gap:14px; align-items:stretch; }
+  .langs { align-self:flex-end; direction:ltr; display:flex; gap:2px; padding:3px; background:rgba(20,13,43,.85); border:2px solid var(--edge); border-radius:22px; }
+  .langs button { font:inherit; font-size:12px; border:0; background:transparent; color:#d8d0f0; padding:7px 12px; border-radius:18px; cursor:pointer; }
+  .langs button.on { background:var(--gold); color:#2a1442; }
+  .title { display:block; margin:6px auto 0; width:min(330px,80%); image-rendering:pixelated; animation: float 3.2s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  .card { background:var(--card); border:2px solid var(--line); border-radius:18px; padding:22px 20px; box-shadow:0 10px 40px rgba(0,0,0,.55); text-align:center; }
+  h1 { margin:0 0 8px; font-size:20px; font-weight:normal; color:var(--gold); line-height:1.5; }
+  p { margin:0 0 14px; font-size:13px; line-height:1.9; color:var(--muted); }
+  label { display:block; text-align:start; font-size:12px; color:var(--muted); margin:12px 0 6px; }
+  input { width:100%; font:inherit; font-size:14px; color:#fff; background:var(--input); border:2px solid var(--edge); border-radius:10px; padding:12px 14px; outline:none; }
+  input:focus { border-color:var(--gold); }
+  .btn { width:100%; margin-top:16px; font:inherit; font-size:16px; color:#2a1442; background:#ffb83d; border:0; border-bottom:5px solid #8a5a10; border-radius:12px; padding:14px 12px 12px; cursor:pointer; }
+  .btn:hover { background:#ffc65e; }
+  .btn:active { transform:translateY(3px); border-bottom-width:2px; }
+  .btn[disabled] { opacity:.55; cursor:default; }
+  .msg { margin-top:14px; padding:10px 12px; border-radius:10px; font-size:12px; line-height:1.8; display:none; }
+  .msg.err { display:block; background:#3a1226; border:2px solid #ff6b81; }
+  .msg.ok { display:block; background:#10301f; border:2px solid #4ade80; }
+  .icon { font-size:42px; line-height:1; margin-bottom:6px; }
+  .spin { width:34px; height:34px; margin:6px auto 14px; border:4px solid #3b2a70; border-top-color:var(--gold); border-radius:50%; animation: sp 0.9s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  footer { text-align:center; font-size:11px; color:#8a7fb3; margin-top:4px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<main>
+  <div class="langs" id="langs">
+    <button data-l="ar">العربية</button><button data-l="en">English</button><button data-l="fr">Français</button>
+  </div>
+  <img class="title" src="title.png" alt="Roof Groove">
+  <section class="card" id="card">
+    <div class="spin" id="spin"></div>
+    <div class="icon" id="icon" hidden></div>
+    <h1 id="h"></h1>
+    <p id="p"></p>
+    <form id="form" hidden autocomplete="off">
+      <label for="pw1" id="l1"></label>
+      <input id="pw1" type="password" minlength="6" required autocomplete="new-password">
+      <label for="pw2" id="l2"></label>
+      <input id="pw2" type="password" minlength="6" required autocomplete="new-password">
+      <button class="btn" id="go" type="submit"></button>
+    </form>
+    <div class="msg" id="msg"></div>
+  </section>
+  <footer><img src="studio-logo.png" width="130" alt="Pixel Studio" style="image-rendering:pixelated;opacity:.95"></footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // Public Firebase web key of the project (the same one inside the game). Firebase also sends it in the link.
+  var FALLBACK_KEY = "AIzaSyAgMmES7FDnz10lWrYZCUDvTX8ZhjbUGmg";
+  var q = new URLSearchParams(location.search);
+  var mode = q.get("mode") || "";
+  var code = q.get("oobCode") || "";
+  var key = q.get("apiKey") || FALLBACK_KEY;
+  var API = "https://identitytoolkit.googleapis.com/v1/accounts:";
+
+  var T = {
+    en: { checking:"Checking your link...", ok_t:"All done!", bad_t:"This link does not work",
+      verify_ok:"Your email is confirmed. Go back to the game and sign in with Pixel Account.",
+      reset_t:"Choose a new password", reset_p:"Account: %s", pw1:"New password", pw2:"Confirm new password", save:"SAVE PASSWORD",
+      reset_ok:"Your password was changed. Go back to the game and sign in with the new password.",
+      bad_p:"The link may have expired or was already used. Go back to the game and ask for a new one.",
+      no_match:"The two passwords are not the same", weak:"The password must be at least 6 characters", err:"Something went wrong. Try again." },
+    ar: { checking:"جاري فحص الرابط...", ok_t:"تمام، خلصنا!", bad_t:"الرابط ده مش شغال",
+      verify_ok:"اتأكد الإيميل بتاعك. ارجع للعبة وسجّل الدخول بحساب بيكسل.",
+      reset_t:"اختار كلمة سر جديدة", reset_p:"الحساب: %s", pw1:"كلمة السر الجديدة", pw2:"تأكيد كلمة السر الجديدة", save:"حفظ كلمة السر",
+      reset_ok:"اتغيرت كلمة السر. ارجع للعبة وسجّل الدخول بالكلمة الجديدة.",
+      bad_p:"ممكن الرابط خلصت مدته أو اتستخدم قبل كده. ارجع للعبة واطلب رابط جديد.",
+      no_match:"كلمتا السر مش متطابقتين", weak:"كلمة السر لازم تكون 6 حروف على الأقل", err:"حصلت مشكلة. جرب تاني." },
+    fr: { checking:"Vérification du lien...", ok_t:"C'est fait !", bad_t:"Ce lien ne fonctionne pas",
+      verify_ok:"Ton e-mail est confirmé. Retourne dans le jeu et connecte-toi avec Pixel Account.",
+      reset_t:"Choisis un nouveau mot de passe", reset_p:"Compte : %s", pw1:"Nouveau mot de passe", pw2:"Confirmer le mot de passe", save:"ENREGISTRER",
+      reset_ok:"Ton mot de passe a été changé. Retourne dans le jeu et connecte-toi avec le nouveau.",
+      bad_p:"Le lien a peut-être expiré ou a déjà été utilisé. Retourne dans le jeu pour en demander un nouveau.",
+      no_match:"Les deux mots de passe sont différents", weak:"Le mot de passe doit avoir au moins 6 caractères", err:"Un problème est survenu. Réessaie." }
+  };
+  var lang = (q.get("lang") || navigator.language || "en").slice(0, 2).toLowerCase();
+  if (!T[lang]) lang = "en";
+  var state = "checking", email = "";
+
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+  function render() {
+    var t = T[lang];
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    Array.prototype.forEach.call(document.querySelectorAll("#langs button"), function (b) { b.classList.toggle("on", b.dataset.l === lang); });
+    $("spin").hidden = state !== "checking";
+    $("icon").hidden = state === "checking" || state === "form";
+    $("form").hidden = state !== "form";
+    if (state === "checking") { $("h").textContent = t.checking; $("p").textContent = ""; }
+    if (state === "verified") { $("icon").textContent = "✅"; $("h").textContent = t.ok_t; $("p").textContent = t.verify_ok; }
+    if (state === "reset_done") { $("icon").textContent = "✅"; $("h").textContent = t.ok_t; $("p").textContent = t.reset_ok; }
+    if (state === "bad") { $("icon").textContent = "⚠️"; $("h").textContent = t.bad_t; $("p").textContent = t.bad_p; }
+    if (state === "form") {
+      $("h").textContent = t.reset_t; $("p").innerHTML = esc(t.reset_p).replace("%s", "<bdi>" + esc(email) + "</bdi>");
+      $("l1").textContent = t.pw1; $("l2").textContent = t.pw2; $("go").textContent = t.save;
+    }
+  }
+
+  function post(endpoint, body) {
+    return fetch(API + endpoint + "?key=" + encodeURIComponent(key), {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); });
+  }
+  function errCode(res) { return (res.data && res.data.error && res.data.error.message) || ""; }
+  function showMsg(text, kind) { var m = $("msg"); m.className = "msg " + kind; m.textContent = text; }
+
+  function start() {
+    if (!code || (mode !== "verifyEmail" && mode !== "resetPassword")) { state = "bad"; render(); return; }
+    if (mode === "verifyEmail") {
+      post("update", { oobCode: code }).then(function (res) { state = res.ok ? "verified" : "bad"; render(); })
+        .catch(function () { state = "bad"; render(); });
+    } else {
+      post("resetPassword", { oobCode: code }).then(function (res) {
+        if (!res.ok) { state = "bad"; render(); return; }
+        email = res.data.email || ""; state = "form"; render();
+      }).catch(function () { state = "bad"; render(); });
+    }
+  }
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = T[lang], a = $("pw1").value, b = $("pw2").value;
+    if (a.length < 6) { showMsg(t.weak, "err"); return; }
+    if (a !== b) { showMsg(t.no_match, "err"); return; }
+    $("go").disabled = true; $("msg").className = "msg";
+    post("resetPassword", { oobCode: code, newPassword: a }).then(function (res) {
+      if (res.ok) { state = "reset_done"; render(); return; }
+      var c = errCode(res);
+      if (c.indexOf("WEAK_PASSWORD") === 0) showMsg(t.weak, "err");
+      else if (c.indexOf("OOB_CODE") !== -1) { state = "bad"; render(); }
+      else showMsg(t.err, "err");
+      $("go").disabled = false;
+    }).catch(function () { showMsg(t.err, "err"); $("go").disabled = false; });
+  });
+
+  $("langs").addEventListener("click", function (e) {
+    var l = e.target && e.target.dataset && e.target.dataset.l;
+    if (l && T[l]) { lang = l; render(); }
+  });
+
+  // stars
+  var sky = $("stars");
+  for (var i = 0; i < 46; i++) {
+    var s = document.createElement("i");
+    s.style.left = (Math.random() * 100) + "%"; s.style.top = (Math.random() * 78) + "%";
+    s.style.animationDelay = (Math.random() * 2.6) + "s";
+    if (Math.random() < .3) { s.style.width = "2px"; s.style.height = "2px"; }
+    sky.appendChild(s);
+  }
+  render(); start();
+})();
+</script>
+</body>
+</html>

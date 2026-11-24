@@ -27,6 +27,9 @@ const DISCORD_FORM: = ["Content-Type: application/x-www-form-urlencoded", "User-
 const DISCORD_JSON: = ["Content-Type: application/json", "User-Agent: DiscordBot (https://roofgroove-discord-auth.vercel.app, 1.0)"]
 const SYNC_EVERY: = 60.0
 const FB_AUTH: = "https://identitytoolkit.googleapis.com/v1/accounts:"
+## Our server sends the designed HTML emails (verify email / reset password). If it is not set up it answers
+## with an error and the game falls back to Firebase's plain emails.
+const MAIL_URL: = "https://roofgroove-discord-auth.vercel.app/api/sendAccountEmail"
 ## Firebase error code -> short message (translated in loc.gd).
 const PIXEL_ERRORS: = {
 	"EMAIL_EXISTS": "This email already has an account",
@@ -182,13 +185,29 @@ func start_password_reset(mail: String) -> void :
 	if _logging_in:
 		return
 	_logging_in = true
-	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
-		JSON.stringify({"requestType": "PASSWORD_RESET", "email": mail.strip_edges().to_lower()}))
+	var clean_mail: = mail.strip_edges().to_lower()
+	var r: Dictionary = {"ok": await _send_account_email("reset", clean_mail, "")}
+	if not r["ok"]:
+		r = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, _mail_headers(), 
+			JSON.stringify({"requestType": "PASSWORD_RESET", "email": clean_mail}))
 	_logging_in = false
 	if r["ok"]:
 		pixel_notice.emit("RESET LINK SENT - CHECK YOUR EMAIL")
 	else:
 		login_failed.emit(_pixel_error(_error_text(r)))
+
+
+## Firebase writes the verification / password reset emails in this language (ar, en, fr).
+func _mail_headers() -> Array:
+	return ["Content-Type: application/json", "X-Firebase-Locale: " + str(Loc.current)]
+
+
+## Asks our server to send the designed email. Returns false when the server is not set up (or fails),
+## so the caller can use Firebase's own email instead.
+func _send_account_email(kind: String, mail: String, tok: String) -> bool:
+	var r: Dictionary = await _http(HTTPClient.METHOD_POST, MAIL_URL, JSON_H, 
+		JSON.stringify({"type": kind, "email": mail, "idToken": tok, "lang": str(Loc.current)}))
+	return bool(r["ok"])
 
 
 func _pixel_error(msg: String) -> String:
@@ -199,18 +218,19 @@ func _pixel_error(msg: String) -> String:
 
 
 func _pixel_sign_up(mail: String, password: String) -> void :
-	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "signUp?key=" + Cfg.API_KEY, JSON_H, 
+	var r: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "signUp?key=" + Cfg.API_KEY, _mail_headers(), 
 		JSON.stringify({"email": mail, "password": password, "returnSecureToken": true}))
 	if not r["ok"] or not (r["data"] is Dictionary):
 		login_failed.emit(_pixel_error(_error_text(r)))
 		return
 	var tok: = str((r["data"] as Dictionary).get("idToken", ""))
 	# The account only works after the player opens the link we email (stops fake accounts).
-	var v: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
-		JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
-	if not v["ok"]:
-		login_failed.emit(_pixel_error(_error_text(v)))
-		return
+	if not await _send_account_email("verify", mail, tok):
+		var v: Dictionary = await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, _mail_headers(), 
+			JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
+		if not v["ok"]:
+			login_failed.emit(_pixel_error(_error_text(v)))
+			return
 	pixel_notice.emit("ACCOUNT CREATED - CHECK YOUR EMAIL FOR THE VERIFICATION LINK, THEN SIGN IN")
 
 
@@ -234,8 +254,9 @@ func _pixel_sign_in(mail: String, password: String) -> void :
 		if not users.is_empty():
 			verified = bool((users[0] as Dictionary).get("emailVerified", false))
 	if not verified:
-		await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, JSON_H, 
-			JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
+		if not await _send_account_email("verify", mail, tok):
+			await _http(HTTPClient.METHOD_POST, FB_AUTH + "sendOobCode?key=" + Cfg.API_KEY, _mail_headers(), 
+				JSON.stringify({"requestType": "VERIFY_EMAIL", "idToken": tok}))
 		login_failed.emit("EMAIL NOT VERIFIED - WE SENT YOU A NEW LINK")
 		return
 	var new_uid: = str(d.get("localId", ""))

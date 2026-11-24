@@ -97,7 +97,7 @@ func _ready() -> void :
 	footer.add_child(_refresh_button)
 	var back: Button = UI.button(tr("BACK"), 16, 44.0)
 	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	back.pressed.connect( func(): get_tree().change_scene_to_file("res://sence/account_hub.tscn"))
+	back.pressed.connect( func(): SceneTransition.go("res://sence/account_hub.tscn"))
 	footer.add_child(back)
 
 	FriendsSystem.friends_updated.connect(_redraw)
@@ -288,7 +288,7 @@ func _draw_tab() -> void :
 		panel.add_child(box)
 		box.add_child(UI.label(tr("Sign in to use friends"), 15, GOLD, _col_width - 40.0))
 		var go: Button = UI.button(tr("GO TO ACCOUNT"), 13, 42.0)
-		go.pressed.connect( func(): get_tree().change_scene_to_file("res://sence/account_menu.tscn"))
+		go.pressed.connect( func(): SceneTransition.go("res://sence/account_menu.tscn"))
 		box.add_child(go)
 		_add_in(panel, index)
 		index += 1
@@ -591,7 +591,7 @@ func _open_profile(uid: String, allow_add: bool) -> void :
 		return
 	Network.set_meta("profile_target_uid", uid)
 	Network.set_meta("profile_can_add", allow_add)
-	get_tree().change_scene_to_file("res://sence/profile_menu.tscn")
+	SceneTransition.go("res://sence/profile_menu.tscn")
 
 
 func _refresh() -> void :

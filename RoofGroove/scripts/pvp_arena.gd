@@ -135,7 +135,7 @@ func _ready() -> void :
 	Network.pvp_kill.connect(_on_kill)
 	Network.pvp_respawn.connect(_on_respawn)
 	Network.pvp_ended.connect(_on_ended)
-	Network.lobby_requested.connect( func() -> void : get_tree().change_scene_to_file(LOBBY))
+	Network.lobby_requested.connect( func() -> void : SceneTransition.go(LOBBY))
 	if Network.in_room():
 		_center_label.text = tr("WAITING FOR PLAYERS ...")
 		Network.send_ready()
@@ -370,7 +370,7 @@ func _on_ended(winner: int) -> void :
 	var menu: = UI.button("MENU", 16, 46.0)
 	menu.pressed.connect( func() -> void :
 		Network.leave()
-		get_tree().change_scene_to_file(MAIN_MENU))
+		SceneTransition.go(MAIN_MENU))
 	col.add_child(menu)
 	if Network.is_room_host():
 		var back: = UI.button("BACK TO LOBBY", 16, 46.0)

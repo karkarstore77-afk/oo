@@ -282,6 +282,6 @@ func _on_back_pressed() -> void :
 	Network.reset_run()
 	var wp: = get_parent()
 	if wp != null and wp.has_method("back_scene") and not Network.in_room():
-		get_tree().change_scene_to_file(str(wp.call("back_scene")))
+		SceneTransition.go(str(wp.call("back_scene")))
 		return
-	get_tree().change_scene_to_file("res://sence/main_menu.tscn")
+	SceneTransition.go("res://sence/main_menu.tscn")

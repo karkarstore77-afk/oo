@@ -57,7 +57,7 @@ static func setup(world: Dictionary, world_title: String, back_scene: String, te
 
 static func play(tree: SceneTree, world: Dictionary, world_title: String, back_scene: String, test: bool = false, race_mode: bool = false) -> void :
 	setup(world, world_title, back_scene, test, race_mode)
-	tree.change_scene_to_file(SCENE)
+	SceneTransition.go(SCENE)
 
 
 func _enter_tree() -> void :
@@ -471,4 +471,4 @@ func _race_refresh_panel(_id: int, _place: int, _t: float) -> void :
 
 
 func _race_to_lobby() -> void :
-	get_tree().change_scene_to_file("res://sence/lobby_preview.tscn")
+	SceneTransition.go("res://sence/lobby_preview.tscn")

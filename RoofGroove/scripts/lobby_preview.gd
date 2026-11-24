@@ -39,7 +39,7 @@ var _world_status: Label
 
 func _ready() -> void :
 	if not Network.in_room():
-		get_tree().change_scene_to_file("res://sence/online_menu.tscn")
+		SceneTransition.go("res://sence/online_menu.tscn")
 		return
 
 	_build_sky()
@@ -273,7 +273,7 @@ func _on_game_started(_path: String) -> void :
 
 func _leave_to_menu() -> void :
 	Network.leave()
-	get_tree().change_scene_to_file("res://sence/online_menu.tscn")
+	SceneTransition.go("res://sence/online_menu.tscn")
 
 
 

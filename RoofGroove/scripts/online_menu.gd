@@ -104,7 +104,7 @@ func _build_main(root: Container) -> void :
 	_main.add_child(_btn("JOIN ROOM", _on_join_room))
 
 	_main.add_child(_btn("LEADERBOARD", _on_leaderboard_pressed))
-	_main.add_child(_btn("BACK", func(): get_tree().change_scene_to_file("res://sence/play_menu.tscn")))
+	_main.add_child(_btn("BACK", func(): SceneTransition.go("res://sence/play_menu.tscn")))
 
 
 func _build_lobby(root: Container) -> void :
@@ -202,7 +202,7 @@ func _on_leave_pressed() -> void :
 
 func _on_room_joined(_code: String) -> void :
 	_set_status("")
-	get_tree().change_scene_to_file("res://sence/lobby_preview.tscn")
+	SceneTransition.go("res://sence/lobby_preview.tscn")
 
 
 func _on_room_failed(reason: String) -> void :

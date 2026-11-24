@@ -16,6 +16,11 @@ var _sub_label: Label
 var _tokens_label: Label
 var _gems_label: Label
 var _accum: = 0.0
+var _gems_popup: Control
+var _gems_popup_time: = 0
+
+## Developer WhatsApp number (international format, digits only) used by the gems popup.
+const DEV_WHATSAPP: = "201149818351"
 
 
 func _ready() -> void :
@@ -81,7 +86,18 @@ func _build() -> void :
 	row.add_child(tokens_chip[0])
 	var gems_chip: = _chip(Color("#5fe3ff"))
 	_gems_label = gems_chip[1]
-	row.add_child(gems_chip[0])
+	var gems_panel: PanelContainer = gems_chip[0]
+	# An invisible button laid over the chip: it works for mouse and touch and opens the gems info popup.
+	var gems_hit: = Button.new()
+	gems_hit.flat = true
+	gems_hit.focus_mode = Control.FOCUS_NONE
+	gems_hit.mouse_filter = Control.MOUSE_FILTER_STOP
+	gems_hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		gems_hit.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	gems_hit.pressed.connect(_open_gems_popup)
+	gems_panel.add_child(gems_hit)
+	row.add_child(gems_panel)
 
 
 func _chip(color: Color) -> Array:
@@ -197,4 +213,87 @@ func _on_avatar_input(event: InputEvent) -> void :
 		Network.set_meta("profile_can_add", false)
 	else:
 		Network.set_meta("profile_target_uid", "")
-	get_tree().change_scene_to_file("res://sence/profile_menu.tscn")
+	SceneTransition.go("res://sence/profile_menu.tscn")
+
+
+func _close_gems_popup() -> void :
+	if _gems_popup != null and is_instance_valid(_gems_popup):
+		_gems_popup.queue_free()
+	_gems_popup = null
+
+
+## Explains how gems work and offers a button that opens WhatsApp with the developer.
+func _open_gems_popup() -> void :
+	if _gems_popup != null and is_instance_valid(_gems_popup):
+		return
+	var cyan: = Color("#5fe3ff")
+	var vp: = get_viewport().get_visible_rect().size
+	var width: = clampf(vp.x - 80.0, 240.0, 460.0)
+
+	var root: = Control.new()
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(root)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_gems_popup = root
+	_gems_popup_time = Time.get_ticks_msec()
+
+	var dim: = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(ev: InputEvent) -> void :
+		# Ignore the tail of the very tap that opened the popup (touch also sends an emulated mouse click).
+		if Time.get_ticks_msec() - _gems_popup_time < 400:
+			return
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			_close_gems_popup())
+
+	var center: = CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var panel: = PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style: = StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.07, 0.13, 1.0)
+	style.border_color = cyan
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 22
+	style.content_margin_right = 22
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+
+	var box: = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+
+	box.add_child(UI.label(tr("GEMS"), 26, cyan))
+
+	var body: = UI.label(tr("Gems can only be added in three ways: by buying them, by being a VIP, or by beating boss arenas in story mode (10 gems each). For buying or VIP, please send a message to the developer."), 16, Color.WHITE, width)
+	body.text_direction = Control.TEXT_DIRECTION_AUTO
+	box.add_child(body)
+
+	var contact: = UI.label(tr("To message the developer and understand the details, tap the button below."), 14, Color("#a7a9b8"), width)
+	contact.text_direction = Control.TEXT_DIRECTION_AUTO
+	box.add_child(contact)
+
+	var wa: = UI.button(tr("MESSAGE THE DEVELOPER ON WHATSAPP"), 16, 52.0)
+	wa.theme_type_variation = "PrimaryButton"
+	wa.pressed.connect(_open_developer_whatsapp)
+	box.add_child(wa)
+
+	var close: = UI.button(tr("CLOSE"), 16, 46.0)
+	close.pressed.connect(_close_gems_popup)
+	box.add_child(close)
+
+	Fx.fade_in(panel, 0.0, 0.2)
+
+
+func _open_developer_whatsapp() -> void :
+	var msg: = tr("Hello, I would like details about gems in Roof Groove.")
+	OS.shell_open("https://wa.me/%s?text=%s" % [DEV_WHATSAPP, msg.uri_encode()])

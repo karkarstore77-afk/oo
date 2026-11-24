@@ -368,11 +368,11 @@ func _leave() -> void :
 
 func _leave_now() -> void :
 	DayCycle.frozen = false
-	get_tree().change_scene_to_file(pending_next)
+	SceneTransition.go(pending_next)
 
 
 
 static func play(tree: SceneTree, pages: Array, next_scene: String) -> void :
 	pending_pages = pages
 	pending_next = next_scene
-	tree.change_scene_to_file(SCENE_PATH)
+	SceneTransition.go(SCENE_PATH)

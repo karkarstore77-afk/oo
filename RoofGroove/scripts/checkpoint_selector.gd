@@ -63,14 +63,14 @@ func _start_game() -> void :
 			Network.checkpoint_seed = 0
 	Network.run_active = false
 	Network.teleported_run = false
-	get_tree().change_scene_to_file("res://sence/world_generated.tscn")
+	SceneTransition.go("res://sence/world_generated.tscn")
 
 
 func _go_back() -> void :
 	if Network.in_room():
-		get_tree().change_scene_to_file("res://sence/lobby_preview.tscn")
+		SceneTransition.go("res://sence/lobby_preview.tscn")
 	else:
-		get_tree().change_scene_to_file("res://sence/online_menu.tscn")
+		SceneTransition.go("res://sence/online_menu.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void :

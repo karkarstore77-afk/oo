@@ -225,7 +225,7 @@ func _go_back() -> void :
 	if _contact_col != null and _contact_col.visible:
 		_show_contact(false)
 		return
-	get_tree().change_scene_to_file("res://sence/main_menu.tscn")
+	SceneTransition.go("res://sence/main_menu.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void :

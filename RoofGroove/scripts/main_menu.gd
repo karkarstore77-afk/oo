@@ -96,19 +96,19 @@ func _refresh_update_btn() -> void :
 
 
 func _on_play_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/play_menu.tscn")
+	SceneTransition.go("res://sence/play_menu.tscn")
 
 
 func _on_account_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/account_hub.tscn")
+	SceneTransition.go("res://sence/account_hub.tscn")
 
 
 func _on_settings_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/settings_menu.tscn")
+	SceneTransition.go("res://sence/settings_menu.tscn")
 
 
 func _on_information_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/information.tscn")
+	SceneTransition.go("res://sence/information.tscn")
 
 
 func _on_qute_pressed() -> void :

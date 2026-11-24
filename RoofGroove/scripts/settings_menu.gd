@@ -222,7 +222,7 @@ func _on_language_pressed(lang_code: String) -> void :
 
 
 func _go_back() -> void :
-	get_tree().change_scene_to_file(MAIN_MENU)
+	SceneTransition.go(MAIN_MENU)
 
 
 func _unhandled_input(event: InputEvent) -> void :

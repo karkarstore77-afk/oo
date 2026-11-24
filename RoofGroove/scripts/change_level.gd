@@ -18,15 +18,15 @@ func _style_buttons() -> void :
 
 
 func _on_hard_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/world.tscn")
+	SceneTransition.go("res://sence/world.tscn")
 
 
 func _on_hard_2_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/world_generated.tscn")
+	SceneTransition.go("res://sence/world_generated.tscn")
 
 
 func _on_back_pressed() -> void :
-	get_tree().change_scene_to_file("res://sence/play_menu.tscn")
+	SceneTransition.go("res://sence/play_menu.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void :

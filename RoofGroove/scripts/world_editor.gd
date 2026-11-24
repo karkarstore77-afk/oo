@@ -491,7 +491,7 @@ func _on_publish() -> void :
 
 func _go_menu() -> void :
 	WorldData.save_local(world, file_id)
-	get_tree().change_scene_to_file(MENU_SCENE)
+	SceneTransition.go(MENU_SCENE)
 
 
 func _notification(what: int) -> void :

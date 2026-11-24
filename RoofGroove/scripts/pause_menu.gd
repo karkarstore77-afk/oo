@@ -178,7 +178,7 @@ func _go_main_menu() -> void :
 	_open = false
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	get_tree().change_scene_to_file(MAIN_MENU)
+	SceneTransition.go(MAIN_MENU)
 
 
 

@@ -380,5 +380,13 @@ func _date_text(unix_time: int) -> String:
 
 func _back_button() -> Button:
 	var back: Button = UI.button(tr("BACK"), 16, 46.0)
-	back.pressed.connect(func(): get_tree().change_scene_to_file("res://sence/friends_menu.tscn") if not _is_self else get_tree().change_scene_to_file("res://sence/account_hub.tscn"))
+	back.pressed.connect(_on_back_pressed)
 	return back
+
+
+## Written as a normal if/else: a scene change inside a one-line "a if x else b" counts as using an async call without await.
+func _on_back_pressed() -> void :
+	if _is_self:
+		SceneTransition.go("res://sence/account_hub.tscn")
+	else:
+		SceneTransition.go("res://sence/friends_menu.tscn")
