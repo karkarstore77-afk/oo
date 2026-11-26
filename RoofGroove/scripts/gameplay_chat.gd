@@ -72,10 +72,12 @@ func _build_overlay() -> void:
 
 	_mic_button = IconButton.new("mic", BTN_SIZE)
 	_mic_button.pressed.connect(func() -> void: VoiceChat.toggle_mic())
+	_mic_button.disabled = not (GameSettings.voice_on and Roles.allowed("voice"))
 	toolbar.add_child(_mic_button)
 
 	_chat_button = IconButton.new("chat", BTN_SIZE)
 	_chat_button.pressed.connect(_toggle_chat)
+	_chat_button.disabled = not Roles.allowed("chat")
 	toolbar.add_child(_chat_button)
 
 	# Small message under the buttons ("MIC ON", "MIC OFF", new chat...). It fades by itself.
@@ -209,4 +211,5 @@ func _input(event: InputEvent) -> void:
 	# Keyboard shortcut: V opens / closes the microphone (same as tapping the button).
 	if event is InputEventKey and event.keycode == KEY_V and event.pressed and not event.echo:
 		if _entry == null or not _entry.has_focus():
-			VoiceChat.toggle_mic()
+			if GameSettings.voice_on and Roles.allowed("voice"):
+				VoiceChat.toggle_mic()

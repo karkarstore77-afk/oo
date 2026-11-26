@@ -82,7 +82,8 @@ func _on_title_input(event: InputEvent) -> void :
 		_title_t = now
 		if _title_taps >= 7:
 			_title_taps = 0
-			CheatUI.open(self)
+			if Roles.allowed("cheats"):
+				CheatUI.open(self)
 
 
 func _on_update_checked(_info: Dictionary) -> void :

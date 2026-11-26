@@ -446,7 +446,7 @@ func _process(delta: float) -> void :
 	_sparks_step(dt)
 	_update_actors()
 	_shake = maxf(_shake - dt, 0.0)
-	if _shake > 0.0:
+	if _shake > 0.0 and GameSettings.shake_on:
 		_view.position = _base_pos + Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake * 18.0 * _view.scale.x
 	else:
 		_view.position = _base_pos

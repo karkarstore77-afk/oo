@@ -126,6 +126,7 @@ func cancel_login() -> void :
 
 
 func sign_out() -> void :
+	Roles.reset()
 	uid = ""
 	email = ""
 	id_token = ""
@@ -752,9 +753,11 @@ func _merge_with_cloud() -> void :
 		_merge_economy(f)
 		_merge_story(f)
 		FriendsSystem.apply_cloud_profile(f)
+		Roles.apply_user_doc(f)
 	elif int(r["code"]) != 404:
 		return
 	else:
+		Roles.apply_user_doc({})
 		FriendsSystem.member_since = int(Time.get_unix_time_from_system())
 	await FriendsSystem.register_id(cloud_pid)
 	await push_now()

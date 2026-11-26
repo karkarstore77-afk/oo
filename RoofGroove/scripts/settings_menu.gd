@@ -2,6 +2,7 @@ extends Control
 
 
 const UI: = preload("res://scripts/ui_kit.gd")
+const FeedbackDialog: = preload("res://scripts/feedback_dialog.gd")
 const SAFE_AREA: = preload("res://scripts/safe_area.gd")
 const MAIN_MENU: = "res://sence/main_menu.tscn"
 
@@ -9,7 +10,13 @@ var _music_check: CheckBox
 var _music_slider: HSlider
 var _music_value: Label
 var _sfx_check: CheckBox
+var _sfx_slider: HSlider
+var _sfx_value: Label
+var _voice_check: CheckBox
+var _fps_check: CheckBox
+var _shake_check: CheckBox
 var _notif_check: CheckBox
+var _notif_freq_btn: Button
 var _motion_check: CheckBox
 var _auto_update_check: CheckBox
 var _update_btn: Button
@@ -57,6 +64,17 @@ func _ready() -> void :
 	col.add_child(music_volume_row)
 	_sfx_check = _make_check("SOUND EFFECTS")
 	col.add_child(_sfx_check)
+	var sfx_volume_row := HBoxContainer.new()
+	sfx_volume_row.add_theme_constant_override("separation", 12)
+	sfx_volume_row.add_child(UI.label("SFX VOLUME", 14, Color(0.8, 0.8, 0.85)))
+	_sfx_slider = _make_slider()
+	_sfx_slider.max_value = 1.0
+	sfx_volume_row.add_child(_sfx_slider)
+	_sfx_value = UI.label("100%", 14, Color(1.0, 0.85, 0.4), 52.0)
+	sfx_volume_row.add_child(_sfx_value)
+	col.add_child(sfx_volume_row)
+	_voice_check = _make_check("VOICE CHAT")
+	col.add_child(_voice_check)
 	col.add_child(HSeparator.new())
 
 	col.add_child(UI.label("LANGUAGE", 16, Color(0.8, 0.8, 0.85)))
@@ -79,13 +97,22 @@ func _ready() -> void :
 		_notif_check.text = "NOTIFICATIONS (PHONE ONLY)"
 		_notif_check.disabled = true
 
+	_notif_freq_btn = UI.button(_notif_freq_text(), 16, 44.0)
+	col.add_child(_notif_freq_btn)
+
 	_motion_check = _make_check("TILT MOTION EFFECT")
 	col.add_child(_motion_check)
+
+	_fps_check = _make_check("SHOW FPS")
+	col.add_child(_fps_check)
+
+	_shake_check = _make_check("SCREEN SHAKE")
+	col.add_child(_shake_check)
 
 	col.add_child(HSeparator.new())
 
 
-	var ver_label: = UI.label(tr("VERSION %s") % Updater.current_version(), 16, Color(0.8, 0.8, 0.85))
+	var ver_label: = UI.label(tr("VERSION %s") % Updater.current_version() + "  •  BUILD %d" % AppVersion.BUILD, 16, Color(0.8, 0.8, 0.85))
 	ver_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	col.add_child(ver_label)
 	_auto_update_check = _make_check("CHECK FOR UPDATES AUTOMATICALLY")
@@ -95,6 +122,11 @@ func _ready() -> void :
 	_update_status = UI.label("", 14, Color(1, 0.85, 0.4), 640.0)
 	col.add_child(_update_status)
 
+	var feedback_btn: = UI.button("SEND FEEDBACK (OPTIONAL)", 18, 52.0)
+	feedback_btn.pressed.connect(func() -> void : FeedbackDialog.open(self))
+	feedback_btn.visible = Roles.allowed("feedback")
+	col.add_child(feedback_btn)
+
 	var back: = UI.button("BACK", 20, 56.0)
 	col.add_child(back)
 
@@ -103,6 +135,11 @@ func _ready() -> void :
 	_music_slider.set_value_no_signal(GameSettings.music_volume)
 	_music_value.text = "%d%%" % roundi(GameSettings.music_volume * 100.0)
 	_sfx_check.set_pressed_no_signal(GameSettings.sfx_on)
+	_sfx_slider.set_value_no_signal(GameSettings.sfx_volume)
+	_sfx_value.text = "%d%%" % roundi(GameSettings.sfx_volume * 100.0)
+	_voice_check.set_pressed_no_signal(GameSettings.voice_on)
+	_fps_check.set_pressed_no_signal(GameSettings.show_fps)
+	_shake_check.set_pressed_no_signal(GameSettings.shake_on)
 	_notif_check.set_pressed_no_signal(GameSettings.notifications_on)
 	_motion_check.set_pressed_no_signal(GameSettings.motion_on)
 	_auto_update_check.set_pressed_no_signal(GameSettings.auto_update)
@@ -110,7 +147,12 @@ func _ready() -> void :
 	_music_check.toggled.connect(_on_music_toggled)
 	_music_slider.value_changed.connect(_on_music_volume_changed)
 	_sfx_check.toggled.connect(_on_sfx_toggled)
+	_sfx_slider.value_changed.connect(_on_sfx_volume_changed)
+	_voice_check.toggled.connect(_on_voice_toggled)
+	_fps_check.toggled.connect(_on_fps_toggled)
+	_shake_check.toggled.connect(_on_shake_toggled)
 	_notif_check.toggled.connect(_on_notif_toggled)
+	_notif_freq_btn.pressed.connect(_on_notif_freq_pressed)
 	_motion_check.toggled.connect(_on_motion_toggled)
 	_auto_update_check.toggled.connect(_on_auto_update_toggled)
 	_update_btn.pressed.connect(_on_check_pressed)
@@ -169,6 +211,40 @@ func _on_sfx_toggled(on: bool) -> void :
 	GameSettings.apply()
 	if on:
 		GameAudio.play_sfx("success")
+
+
+func _on_sfx_volume_changed(value: float) -> void :
+	GameSettings.sfx_volume = clampf(value, 0.0, 1.0)
+	_sfx_value.text = "%d%%" % roundi(GameSettings.sfx_volume * 100.0)
+	GameSettings.apply()
+
+
+func _on_voice_toggled(on: bool) -> void :
+	GameSettings.voice_on = on
+	GameSettings.apply()
+
+
+func _on_fps_toggled(on: bool) -> void :
+	GameSettings.show_fps = on
+	GameSettings.apply()
+
+
+func _on_shake_toggled(on: bool) -> void :
+	GameSettings.shake_on = on
+	GameSettings.apply()
+
+
+func _notif_freq_text() -> String:
+	return tr("NOTIFICATIONS: EVERY %d HOURS") % GameSettings.notif_every_hours
+
+
+func _on_notif_freq_pressed() -> void :
+	var opts: = [3, 6, 12, 24]
+	var i: = opts.find(GameSettings.notif_every_hours)
+	GameSettings.notif_every_hours = opts[(i + 1) % opts.size()]
+	_notif_freq_btn.text = _notif_freq_text()
+	GameSettings.apply()
+	HourlyNotifier.refresh()
 
 
 func _on_notif_toggled(on: bool) -> void :

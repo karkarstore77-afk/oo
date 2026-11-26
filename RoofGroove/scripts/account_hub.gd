@@ -49,6 +49,8 @@ func _ready() -> void :
 
 func _add(root: Control, text: String, scene: String) -> void :
 	var b: = UI.button(tr(text), 20, 60.0)
+	if text == "SKINS" and not Roles.allowed("skins"):
+		b.disabled = true
 	b.pressed.connect( func(): SceneTransition.go(scene))
 	root.add_child(b)
 

@@ -18,7 +18,7 @@ config/name="Roof Groove"
 config/description="Hard  Platform Game 
 
 By : RayyanElnahas"
-config/version="1.1.6"
+config/version="1.1.7"
 config/tags=PackedStringArray("1")
 run/main_scene="res://SPLASH.tscn"
 run/enable_alt_space_menu=true
@@ -34,6 +34,8 @@ driver/enable_input=true
 
 [autoload]
 
+PatchLoader="*res://scripts/patch_loader.gd"
+Roles="*res://scripts/roles.gd"
 HourlyNotifier="*res://scripts/hourly_notifier.gd"
 Network="*res://scripts/network.gd"
 IntegrityGuard="*res://scripts/integrity_guard.gd"
@@ -58,7 +60,7 @@ window/stretch/aspect="expand"
 window/vsync/vsync_mode=0
 mouse_cursor/image=""
 mouse_cursor/name_localized={}
-mouse_cursor/version="1.1.6"
+mouse_cursor/version="1.1.7"
 
 [dotnet]
 

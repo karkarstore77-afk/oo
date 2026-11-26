@@ -35,6 +35,7 @@ func _ready() -> void :
 	root.add_child(story)
 
 	var online: = UI.button("ONLINE / LAN", 20, 64.0)
+	online.disabled = not Roles.allowed("online")
 	online.pressed.connect( func(): SceneTransition.go("res://sence/online_menu.tscn"))
 	root.add_child(online)
 
@@ -43,6 +44,7 @@ func _ready() -> void :
 	root.add_child(offline)
 
 	var worlds: = UI.button("WORLDS", 20, 64.0)
+	worlds.disabled = not Roles.allowed("worlds")
 	worlds.pressed.connect( func(): SceneTransition.go("res://sence/worlds_menu.tscn"))
 	root.add_child(worlds)
 

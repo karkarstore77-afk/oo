@@ -54,7 +54,9 @@ func _on_permission_granted(_permission: String) -> void :
 
 
 func _on_permission_denied(_permission: String) -> void :
+	# Denied: nothing is scheduled. The next time the player turns the setting off and on, we ask again.
 	push_warning("HourlyNotifier: notification permission denied")
+	_asked_permission = true
 
 
 ## user_initiated = true when the player just switched notifications on
@@ -71,6 +73,7 @@ func refresh(user_initiated: bool = false) -> void :
 			_scheduler.request_post_notifications_permission()
 		return
 	_schedule_all()
+	_last_refresh_msec = Time.get_ticks_msec()
 
 
 func _cancel_all() -> void :
@@ -94,7 +97,7 @@ func _schedule_all() -> void :
 func _slot_delay(i: int) -> int:
 	var now: = Time.get_datetime_dict_from_system()
 	var sod: = int(now.hour) * 3600 + int(now.minute) * 60 + int(now.second)
-	var delay: = INTERVAL_SECONDS * (i + 1)
+	var delay: = _interval() * (i + 1)
 	var at: = (sod + delay) % 86400
 	var hour: = at / 3600
 	if hour < QUIET_UNTIL_HOUR:
@@ -102,9 +105,14 @@ func _slot_delay(i: int) -> int:
 	return delay
 
 
+## notification gap in seconds, chosen by the player in the settings
+func _interval() -> int:
+	return clampi(GameSettings.notif_every_hours, 1, 24) * 3600
+
+
 func _build_sequence(count: int) -> Array:
 	var pool: Array = []
-	for m in Messages.MESSAGES:
+	for m in Messages.for_language(Loc.current):
 		var text: = str(m).strip_edges()
 		if text != "":
 			pool.append(text)

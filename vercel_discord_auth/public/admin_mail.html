@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roof Groove - admin mail</title>
+<style>body{background:#14141f;color:#eee;font-family:Arial,sans-serif;max-width:520px;margin:30px auto;padding:0 16px}
+input,textarea,button{width:100%;box-sizing:border-box;margin:6px 0;padding:10px;border-radius:8px;border:2px solid #3b3f5c;background:#1d1d2e;color:#fff;font-size:15px}
+button{background:#6b4bb0;cursor:pointer}#out{margin-top:10px;white-space:pre-wrap}</style></head><body>
+<h2>Send email to a player</h2>
+<input id="key" type="password" placeholder="Admin key (ADMIN_MAIL_KEY)" autocomplete="off">
+<input id="to" type="email" placeholder="Player account email">
+<input id="subject" placeholder="Subject">
+<textarea id="msg" rows="8" placeholder="Message"></textarea>
+<button id="go">Send</button><div id="out"></div>
+<script>
+document.getElementById("go").onclick=async()=>{const o=document.getElementById("out");o.textContent="Sending ...";
+try{const r=await fetch("/api/adminEmail",{method:"POST",headers:{"Content-Type":"application/json","x-admin-key":key.value},body:JSON.stringify({to:to.value,subject:subject.value,message:msg.value})});
+const d=await r.json().catch(()=>({}));o.textContent=r.ok?"Sent.":"Failed ("+r.status+"): "+(d.error||"")+(d.detail?" - "+d.detail:"");}catch(e){o.textContent="No connection";}};
+</script></body></html>

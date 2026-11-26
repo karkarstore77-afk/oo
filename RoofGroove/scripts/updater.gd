@@ -9,6 +9,7 @@ signal check_finished(info: Dictionary)
 
 const FirebaseConfig: = preload("res://scripts/firebase_config.gd")
 const UI: = preload("res://scripts/ui_kit.gd")
+const Patch: = preload("res://scripts/patch_loader.gd")
 
 const AUTO_CHECK_DELAY: = 3.0
 const RECHECK_EVERY: = 6.0 * 3600.0
@@ -31,6 +32,7 @@ var _save_path: = ""
 var _box: VBoxContainer
 var _bar: ProgressBar
 var _pct_label: Label
+var _patch_mode: = false
 
 
 func _ready() -> void :
@@ -57,7 +59,11 @@ func _auto_check() -> void :
 
 
 func current_version() -> String:
-	return AppVersion.current()
+	# A content patch can be newer than the APK it runs on (global classes are read before the patch loads).
+	var v: = AppVersion.current()
+	if Patch.loaded_version != "" and is_newer(Patch.loaded_version, v):
+		return Patch.loaded_version
+	return v
 
 
 func check(manual: bool = false) -> void :
@@ -107,18 +113,29 @@ func _extract(data: Dictionary) -> Dictionary:
 				if typed.has(type_key):
 					src[k] = typed[type_key]
 	var out: = {}
-	for k in ["version", "min_version", "notes", "url", "url_android", "url_windows", "url_ios"]:
+	for k in ["version", "min_version", "notes", "url", "url_android", "url_windows", "url_linux", "url_macos", "url_ios", "android", "windows", "linux", "macos", "mac", "ios", "pck_url", "pck_sha256", "pck_base_build"]:
 		out[k] = str(src.get(k, "")).strip_edges()
 	var platform_url: = ""
 	match OS.get_name():
 		"Android":
-			platform_url = str(out["url_android"])
+			platform_url = _first(out, ["url_android", "android"])
 		"Windows":
-			platform_url = str(out["url_windows"])
+			platform_url = _first(out, ["url_windows", "windows"])
+		"Linux":
+			platform_url = _first(out, ["url_linux", "linux"])
+		"macOS":
+			platform_url = _first(out, ["url_macos", "macos", "mac"])
 		"iOS":
-			platform_url = str(out["url_ios"])
+			platform_url = _first(out, ["url_ios", "ios"])
 	out["download_url"] = platform_url if platform_url != "" else str(out["url"])
 	return out
+
+
+static func _first(d: Dictionary, keys: Array) -> String:
+	for k in keys:
+		if str(d.get(k, "")).strip_edges() != "":
+			return str(d[k])
+	return ""
 
 
 static func is_newer(a: String, b: String) -> bool:
@@ -232,10 +249,12 @@ func _render_ready() -> void :
 	var box: = _new_box()
 	box.add_child(UI.label("UPDATE DOWNLOADED", 24, Color(0.5, 1, 0.6)))
 	var msg: = "The game will close and restart to finish the update."
-	if OS.get_name() == "Android":
+	if _patch_mode:
+		msg = "Update saved. No installation needed: close the game and open it again."
+	elif OS.get_name() == "Android":
 		msg = "Android will ask you to confirm the install. After it finishes, open the game again."
 	box.add_child(UI.label(msg, 16, Color.WHITE, 480.0))
-	var install_btn: = UI.button("INSTALL & RESTART", 20, 56.0)
+	var install_btn: = UI.button("CLOSE GAME NOW" if _patch_mode else "INSTALL & RESTART", 20, 56.0)
 	install_btn.pressed.connect(_on_install_pressed)
 	box.add_child(install_btn)
 	if not _is_required():
@@ -264,7 +283,21 @@ func _render_message(title: String, text: String, retry: bool, open_page: bool) 
 
 
 
+func _patch_available() -> bool:
+	## A content patch (.pck) is used when the server offers one made for THIS installed build.
+	var u: = str(latest.get("pck_url", ""))
+	if u == "":
+		return false
+	var base: = str(latest.get("pck_base_build", ""))
+	return base == "" or base.to_int() == Patch.BASE_BUILD
+
+
 func _on_update_pressed() -> void :
+	if _patch_available():
+		_patch_mode = true
+		_start_download(str(latest["pck_url"]))
+		return
+	_patch_mode = false
 	var url: = str(latest.get("download_url", ""))
 	if url == "":
 		_render_message("UPDATE FAILED", "No download link for this platform", false, false)
@@ -348,6 +381,16 @@ func _on_download_done(result: int, code: int, _headers: PackedStringArray, _bod
 		_remove_file(_save_path)
 		_render_message("DOWNLOAD FAILED", "Check your internet connection and try again", true, true)
 		return
+	if _patch_mode:
+		var want: = str(latest.get("pck_sha256", "")).to_lower()
+		if want != "" and FileAccess.get_sha256(_save_path).to_lower() != want:
+			_remove_file(_save_path)
+			_render_message("DOWNLOAD FAILED", "The update file is damaged. Try again", true, true)
+			return
+		if not Patch.install_patch(_save_path, str(latest.get("version", ""))):
+			_remove_file(_save_path)
+			_render_message("INSTALL FAILED", "Could not save the update", true, true)
+			return
 	_render_ready()
 
 
@@ -365,6 +408,11 @@ func _on_cancel_download() -> void :
 
 
 func _on_install_pressed() -> void :
+	if _patch_mode:
+		if OS.get_name() == "Windows" or OS.get_name() == "Linux" or OS.get_name() == "macOS":
+			OS.set_restart_on_exit(true, OS.get_cmdline_args())
+		get_tree().quit()
+		return
 	if OS.has_feature("editor"):
 		_render_message("EDITOR MODE", "The update was downloaded to:\n" + ProjectSettings.globalize_path(_save_path) + "\n(Installing only works in an exported build)", false, false)
 		return

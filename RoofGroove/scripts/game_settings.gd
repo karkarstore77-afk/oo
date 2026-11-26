@@ -14,6 +14,9 @@ var sfx_volume: = 1.0
 var notifications_on: = true
 var motion_on: = true
 var auto_update: = true
+var show_fps: = true
+var shake_on: = true
+var notif_every_hours: = 6
 var language: = ""
 
 
@@ -33,6 +36,9 @@ func load_settings() -> void :
 	notifications_on = bool(cfg.get_value("game", "notifications_on", notifications_on))
 	motion_on = bool(cfg.get_value("game", "motion_on", motion_on))
 	auto_update = bool(cfg.get_value("game", "auto_update", auto_update))
+	show_fps = bool(cfg.get_value("game", "show_fps", show_fps))
+	shake_on = bool(cfg.get_value("game", "shake_on", shake_on))
+	notif_every_hours = clampi(int(cfg.get_value("game", "notif_every_hours", notif_every_hours)), 1, 24)
 	language = str(cfg.get_value("game", "language", language))
 	changed.emit()
 
@@ -52,5 +58,8 @@ func save_settings() -> void :
 	cfg.set_value("game", "notifications_on", notifications_on)
 	cfg.set_value("game", "motion_on", motion_on)
 	cfg.set_value("game", "auto_update", auto_update)
+	cfg.set_value("game", "show_fps", show_fps)
+	cfg.set_value("game", "shake_on", shake_on)
+	cfg.set_value("game", "notif_every_hours", notif_every_hours)
 	cfg.set_value("game", "language", language)
 	cfg.save(PATH)
